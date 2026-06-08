@@ -3,759 +3,244 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TG Stats — Telegram Chat Analyzer</title>
-
-<!-- Fonts: Syne (display) + JetBrains Mono (data) -->
+<title>TG Stats — Telegram Analyzer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-
-<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-
 <style>
-/* ============================================================
-   DESIGN SYSTEM — ui-ux-pro-max: Data-Dense Dashboard + Dark OLED
-   Style: Cyberpunk/HUD + Bento Grid
-   Colors: Deep Black + Electric Cyan + Vivid Purple + Amber
-   Typography: Syne (headers) + JetBrains Mono (data)
-   ============================================================ */
+:root{
+  --bg:#080810;--bg2:#0d0d1a;--bg3:#111122;--bg4:#161630;
+  --br:rgba(255,255,255,0.07);--brc:rgba(0,220,255,0.3);
+  --c1:#00dcff;--c2:#a855f7;--c3:#f59e0b;--c4:#10b981;--c5:#ec4899;--c6:#3b82f6;--c7:#ef4444;--c8:#84cc16;
+  --t1:#f0f0ff;--t2:#8888aa;--t3:#44445a;
+  --fd:'Syne',sans-serif;--fm:'JetBrains Mono',monospace;
+  --r1:8px;--r2:14px;--r3:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--fd);background:var(--bg);color:var(--t1);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(0,220,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,220,255,0.025) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none}
 
-:root {
-  --bg-base:     #080810;
-  --bg-panel:    #0d0d1a;
-  --bg-card:     #111122;
-  --bg-hover:    #161630;
-  --border:      rgba(255,255,255,0.07);
-  --border-glow: rgba(0,220,255,0.3);
+/* UPLOAD */
+#upload-screen{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:2.5rem}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--c1),var(--c2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.logo-text{font-size:28px;font-weight:800;letter-spacing:-0.5px}
+.logo-text span{color:var(--c1)}
+.hero-title{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;text-align:center;line-height:1.1;letter-spacing:-1px;margin-bottom:1rem}
+.hero-title .accent{color:var(--c1)}
+.hero-sub{font-family:var(--fm);font-size:13px;color:var(--t2);text-align:center;margin-bottom:2.5rem;max-width:480px;line-height:1.7}
+@keyframes pulse-border{0%,100%{border-color:rgba(0,220,255,0.4)}50%{border-color:rgba(0,220,255,0.9);box-shadow:0 0 20px rgba(0,220,255,0.2)}}
+.drop-zone{width:100%;max-width:540px;border:1.5px dashed rgba(0,220,255,0.4);border-radius:var(--r3);padding:2.5rem 2rem;text-align:center;cursor:pointer;position:relative;background:var(--bg2);transition:all 0.3s;animation:pulse-border 3s ease-in-out infinite}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--c1);box-shadow:0 0 30px rgba(0,220,255,0.15);animation:none}
+.drop-icon{font-size:44px;display:block;margin-bottom:1rem}
+.drop-title{font-size:17px;font-weight:700;margin-bottom:.4rem}
+.drop-sub{font-family:var(--fm);font-size:11px;color:var(--t2);line-height:1.7}
+.hint-steps{margin-top:2rem;display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;max-width:540px}
+.hint-step{background:var(--bg2);border:1px solid var(--br);border-radius:var(--r2);padding:.85rem 1.1rem;flex:1;min-width:145px}
+.hint-step .sn{font-family:var(--fm);font-size:10px;font-weight:500;color:var(--c1);letter-spacing:.1em;margin-bottom:5px}
+.hint-step p{font-size:12px;color:var(--t2);line-height:1.5}
 
-  --cyan:    #00dcff;
-  --cyan-d:  #0099cc;
-  --purple:  #a855f7;
-  --purple-d:#7c3aed;
-  --amber:   #f59e0b;
-  --green:   #10b981;
-  --pink:    #ec4899;
-  --red:     #ef4444;
+/* LOADING */
+#loading-screen{display:none;position:fixed;inset:0;z-index:100;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:1.5rem}
+#loading-screen.active{display:flex}
+.lr{width:80px;height:80px;position:relative}
+.lr::before,.lr::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid transparent}
+.lr::before{border-top-color:var(--c1);animation:spin 1s linear infinite}
+.lr::after{border-bottom-color:var(--c2);animation:spin 1.5s linear infinite reverse;inset:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{font-family:var(--fm);font-size:14px;color:var(--t2);letter-spacing:.05em}
+.lb-wrap{width:280px;height:2px;background:var(--br);border-radius:2px;overflow:hidden}
+.lb{height:100%;background:linear-gradient(90deg,var(--c1),var(--c2));width:0%;transition:width .4s ease;border-radius:2px}
+.lf{font-family:var(--fm);font-size:11px;color:var(--t3)}
 
-  --text-1:  #f0f0ff;
-  --text-2:  #8888aa;
-  --text-3:  #44445a;
+/* DASHBOARD */
+#dashboard{display:none;position:relative;z-index:1}
+#dashboard.active{display:block}
 
-  --font-display: 'Syne', sans-serif;
-  --font-data:    'JetBrains Mono', monospace;
+/* NAV */
+.dash-nav{position:sticky;top:0;z-index:50;background:rgba(8,8,16,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--br);padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:56px;gap:1rem}
+.nav-logo{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.nav-logo span{color:var(--c1)}
+.nav-right{display:flex;align-items:center;gap:.75rem}
+.nav-badge{font-family:var(--fm);font-size:11px;color:var(--t2);background:var(--bg3);border:1px solid var(--br);border-radius:100px;padding:3px 10px;white-space:nowrap}
+.btn-sm{font-family:var(--fm);font-size:11px;color:var(--c1);background:transparent;border:1px solid rgba(0,220,255,0.3);border-radius:100px;padding:5px 14px;cursor:pointer;transition:all .2s;white-space:nowrap}
+.btn-sm:hover{background:rgba(0,220,255,0.1)}
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+/* CHAT SWITCHER */
+.chat-switcher-bar{background:var(--bg2);border-bottom:1px solid var(--br);padding:.75rem 1.5rem;display:flex;gap:.5rem;overflow-x:auto;align-items:center;flex-wrap:nowrap}
+.chat-switcher-bar::-webkit-scrollbar{height:3px}
+.chat-switcher-bar::-webkit-scrollbar-thumb{background:var(--br);border-radius:2px}
+.chat-pill{font-family:var(--fm);font-size:11px;font-weight:500;letter-spacing:.03em;padding:6px 14px;border-radius:100px;border:1px solid var(--br);background:transparent;color:var(--t2);cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
+.chat-pill:hover{border-color:rgba(0,220,255,0.3);color:var(--t1)}
+.chat-pill.active{background:rgba(0,220,255,0.12);border-color:var(--c1);color:var(--c1)}
 
-  --glow-cyan:   0 0 30px rgba(0,220,255,0.15);
-  --glow-purple: 0 0 30px rgba(168,85,247,0.15);
-}
+/* TABS */
+.dash-tabs{display:flex;border-bottom:1px solid var(--br);padding:0 1.5rem;background:var(--bg);overflow-x:auto}
+.dash-tab{font-family:var(--fm);font-size:11px;font-weight:500;letter-spacing:.05em;color:var(--t2);padding:12px 18px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;text-transform:uppercase}
+.dash-tab:hover{color:var(--t1)}
+.dash-tab.active{color:var(--c1);border-bottom-color:var(--c1)}
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* CONTENT */
+.dash-content{padding:1.5rem;max-width:1400px;margin:0 auto}
+.dash-section{display:none}
+.dash-section.active{display:block}
+.sg{margin-bottom:1.25rem}
 
-html { scroll-behavior: smooth; }
+/* CHAT HERO */
+.chat-hero{display:flex;align-items:center;gap:1.25rem;background:var(--bg2);border:1px solid var(--br);border-radius:var(--r2);padding:1.25rem 1.5rem;margin-bottom:1.25rem;position:relative;overflow:hidden}
+.chat-hero::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(to bottom,var(--c1),var(--c2))}
+.ch-av{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0;border:2px solid rgba(0,220,255,0.25)}
+.ch-name{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.ch-dates{font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:3px}
+.ch-badge{display:inline-block;margin-top:7px;font-family:var(--fm);font-size:9px;letter-spacing:.1em;color:var(--c1);background:rgba(0,220,255,0.1);border:1px solid rgba(0,220,255,0.2);border-radius:4px;padding:2px 8px}
 
-body {
-  font-family: var(--font-display);
-  background: var(--bg-base);
-  color: var(--text-1);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+/* METRICS BENTO */
+.bento{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:1.25rem}
+.mc{background:var(--bg2);border:1px solid var(--br);border-radius:var(--r2);padding:1.1rem;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.mc:hover{border-color:rgba(0,220,255,0.2);box-shadow:0 0 20px rgba(0,220,255,0.08)}
+.mc.hl-c{border-color:rgba(0,220,255,0.3)}.mc.hl-p{border-color:rgba(168,85,247,0.3)}.mc.hl-a{border-color:rgba(245,158,11,0.3)}.mc.hl-g{border-color:rgba(16,185,129,0.3)}
+.mc-icon{font-size:18px;margin-bottom:8px;display:block}
+.mc-label{font-family:var(--fm);font-size:9px;color:var(--t2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px}
+.mc-value{font-family:var(--fm);font-size:23px;font-weight:500;color:var(--t1);line-height:1}
+.mc-sub{font-family:var(--fm);font-size:10px;color:var(--t3);margin-top:3px}
 
-/* ── BACKGROUND GRID ── */
-body::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0;
-  background-image:
-    linear-gradient(rgba(0,220,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,220,255,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-}
+/* CHARTS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.25rem}
+@media(max-width:860px){.g2,.g3{grid-template-columns:1fr}}
+.cc{background:var(--bg2);border:1px solid var(--br);border-radius:var(--r2);padding:1.25rem}
+.ct{font-family:var(--fm);font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);margin-bottom:1rem;display:flex;align-items:center;gap:7px}
+.ct::before{content:'';width:3px;height:11px;border-radius:2px;background:var(--c1);display:inline-block;flex-shrink:0}
+.ct.p::before{background:var(--c2)}.ct.a::before{background:var(--c3)}.ct.g::before{background:var(--c4)}.ct.pk::before{background:var(--c5)}.ct.b::before{background:var(--c6)}
+.cw{position:relative;width:100%}
+.lr-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;font-family:var(--fm);font-size:11px;color:var(--t2)}
+.lr-dot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
 
-/* ── UPLOAD SCREEN ── */
-#upload-screen {
-  position: relative; z-index: 1;
-  min-height: 100vh;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  padding: 2rem;
-}
+/* BAR ROWS */
+.bar-row{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.bar-lbl{font-family:var(--fm);font-size:11px;color:var(--t2);width:88px;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:18px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.bar-val{font-family:var(--fm);font-size:11px;color:var(--t2);width:42px;flex-shrink:0}
 
-.logo {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 3rem;
-}
-.logo-icon {
-  width: 48px; height: 48px;
-  background: linear-gradient(135deg, var(--cyan), var(--purple));
-  border-radius: 14px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-}
-.logo-text {
-  font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
-}
-.logo-text span { color: var(--cyan); }
+/* MEDIA TILES */
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.media-tile{background:var(--bg3);border:1px solid var(--br);border-radius:var(--r1);padding:.85rem .75rem;text-align:center;transition:border-color .2s}
+.media-tile:hover{border-color:rgba(0,220,255,0.2)}
+.mt-icon{font-size:26px;display:block;margin-bottom:6px}
+.mt-label{font-family:var(--fm);font-size:9px;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.mt-val{font-family:var(--fm);font-size:17px;font-weight:500;color:var(--t1)}
 
-.hero-title {
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  font-weight: 800;
-  text-align: center;
-  line-height: 1.1;
-  letter-spacing: -1px;
-  margin-bottom: 1rem;
-}
-.hero-title .accent { color: var(--cyan); }
+/* WORDS */
+.words-cloud{display:flex;flex-wrap:wrap;gap:7px}
+.wp{font-family:var(--fm);font-size:12px;color:var(--t1);background:var(--bg3);border:1px solid var(--br);border-radius:100px;padding:4px 12px;cursor:default;transition:all .2s}
+.wp:hover{border-color:var(--c1);color:var(--c1)}
+.wp .wc{color:var(--t3);margin-left:3px;font-size:10px}
 
-.hero-sub {
-  font-family: var(--font-data);
-  font-size: 14px;
-  color: var(--text-2);
-  text-align: center;
-  margin-bottom: 3rem;
-  max-width: 480px;
-  line-height: 1.7;
-}
+/* EMOJI */
+.emoji-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:7px}
+.ei{background:var(--bg3);border:1px solid var(--br);border-radius:var(--r1);padding:10px 6px;text-align:center;transition:border-color .2s}
+.ei:hover{border-color:rgba(0,220,255,0.3)}
+.ei-e{font-size:26px;display:block}
+.ei-c{font-family:var(--fm);font-size:11px;color:var(--t2);margin-top:3px}
 
-/* DROP ZONE */
-.drop-zone {
-  width: 100%;
-  max-width: 560px;
-  border: 1.5px dashed rgba(0,220,255,0.4);
-  border-radius: var(--radius-lg);
-  padding: 3rem 2rem;
-  text-align: center;
-  cursor: pointer;
-  position: relative;
-  background: var(--bg-panel);
-  transition: all 0.3s ease;
-}
-.drop-zone::before {
-  content: '';
-  position: absolute; inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, var(--cyan), var(--purple));
-  opacity: 0;
-  z-index: -1;
-  transition: opacity 0.3s;
-}
-.drop-zone:hover::before,
-.drop-zone.drag-over::before { opacity: 0.15; }
-.drop-zone:hover,
-.drop-zone.drag-over {
-  border-color: var(--cyan);
-  box-shadow: var(--glow-cyan);
-}
+/* SENDER CARDS */
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+.sc{background:var(--bg3);border:1px solid var(--br);border-radius:var(--r2);padding:1.1rem;transition:border-color .2s}
+.sc:hover{border-color:rgba(0,220,255,0.2)}
+.sc-hdr{display:flex;align-items:center;gap:10px;margin-bottom:.85rem}
+.sc-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.sc-name{font-size:13px;font-weight:700}
+.sc-rank{font-family:var(--fm);font-size:10px;color:var(--t3)}
+.sc-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ss{background:var(--bg2);border-radius:6px;padding:7px 9px}
+.ss-l{font-family:var(--fm);font-size:8px;color:var(--t3);letter-spacing:.07em;text-transform:uppercase}
+.ss-v{font-family:var(--fm);font-size:15px;font-weight:500;color:var(--t1)}
+.sc-bar{margin-top:.85rem}
+.sc-bl{display:flex;justify-content:space-between;font-family:var(--fm);font-size:9px;color:var(--t2);margin-bottom:3px}
+.sc-bt{height:3px;background:var(--br);border-radius:3px;overflow:hidden}
+.sc-bf{height:100%;border-radius:3px}
 
-.drop-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 1rem;
-  filter: grayscale(0.3);
-}
-.drop-title {
-  font-size: 18px; font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-.drop-sub {
-  font-family: var(--font-data);
-  font-size: 12px;
-  color: var(--text-2);
-  line-height: 1.7;
-}
+/* RECORDS */
+.rec-list{display:flex;flex-direction:column;gap:9px}
+.ri{display:flex;align-items:center;gap:.85rem;background:var(--bg3);border:1px solid var(--br);border-radius:var(--r1);padding:10px 14px}
+.ri-icon{font-size:18px;flex-shrink:0}
+.ri-info{flex:1}
+.ri-label{font-size:12px;font-weight:600}
+.ri-detail{font-family:var(--fm);font-size:10px;color:var(--t2);margin-top:1px}
+.ri-val{font-family:var(--fm);font-size:17px;font-weight:500;color:var(--c1)}
 
-.hint-steps {
-  margin-top: 2.5rem;
-  display: flex; gap: 1rem;
-  flex-wrap: wrap; justify-content: center;
-  max-width: 560px;
-}
-.hint-step {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1rem 1.25rem;
-  flex: 1; min-width: 150px;
-  text-align: left;
-}
-.hint-step .step-num {
-  font-family: var(--font-data);
-  font-size: 11px; font-weight: 500;
-  color: var(--cyan);
-  letter-spacing: 0.1em;
-  margin-bottom: 6px;
-}
-.hint-step p {
-  font-size: 13px;
-  color: var(--text-2);
-  line-height: 1.5;
-}
+/* HEATMAP */
+.hm{display:grid;grid-template-columns:34px repeat(24,1fr);gap:2px;font-family:var(--fm);font-size:9px;color:var(--t3)}
+.hm-cell{height:20px;border-radius:3px;background:var(--bg3);cursor:default;position:relative}
+.hm-cell:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--br);border-radius:5px;padding:3px 7px;font-size:10px;color:var(--t1);white-space:nowrap;z-index:10;pointer-events:none}
+.hm-lbl{display:flex;align-items:center;font-size:9px;color:var(--t3)}
+.hm-h{display:flex;align-items:center;justify-content:center}
 
-/* ── LOADING SCREEN ── */
-#loading-screen {
-  display: none;
-  position: fixed; inset: 0; z-index: 100;
-  background: var(--bg-base);
-  flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 2rem;
-}
-#loading-screen.active { display: flex; }
+/* TOAST */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#1a0a0a;border:1px solid var(--c7);border-radius:var(--r1);color:#ff8888;font-family:var(--fm);font-size:12px;padding:10px 20px;z-index:999;opacity:0;pointer-events:none;transition:opacity .3s}
+.toast.show{opacity:1;pointer-events:auto}
 
-.loader-ring {
-  width: 80px; height: 80px;
-  position: relative;
-}
-.loader-ring::before, .loader-ring::after {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: 50%;
-  border: 2px solid transparent;
-}
-.loader-ring::before {
-  border-top-color: var(--cyan);
-  animation: spin 1s linear infinite;
-}
-.loader-ring::after {
-  border-bottom-color: var(--purple);
-  animation: spin 1.5s linear infinite reverse;
-  inset: 8px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--br);border-radius:3px}
 
-.loader-text {
-  font-family: var(--font-data);
-  font-size: 14px;
-  color: var(--text-2);
-  letter-spacing: 0.05em;
-}
-.loader-bar-wrap {
-  width: 280px;
-  height: 2px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.loader-bar {
-  height: 100%;
-  background: linear-gradient(90deg, var(--cyan), var(--purple));
-  width: 0%;
-  transition: width 0.4s ease;
-  border-radius: 2px;
-}
-.loader-file {
-  font-family: var(--font-data);
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-/* ── DASHBOARD ── */
-#dashboard {
-  display: none;
-  position: relative; z-index: 1;
-  padding: 0;
-}
-#dashboard.active { display: block; }
-
-/* Top nav */
-.dash-nav {
-  position: sticky; top: 0; z-index: 50;
-  background: rgba(8,8,16,0.9);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-  padding: 0 2rem;
-  display: flex; align-items: center; justify-content: space-between;
-  height: 60px;
-}
-.dash-nav-logo {
-  font-size: 18px; font-weight: 800;
-  display: flex; align-items: center; gap: 10px;
-}
-.dash-nav-logo span { color: var(--cyan); }
-.dash-nav-right {
-  display: flex; align-items: center; gap: 1rem;
-}
-.nav-badge {
-  font-family: var(--font-data);
-  font-size: 11px;
-  color: var(--text-2);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 100px;
-  padding: 4px 12px;
-}
-.btn-reset {
-  font-family: var(--font-data);
-  font-size: 12px;
-  color: var(--cyan);
-  background: transparent;
-  border: 1px solid rgba(0,220,255,0.3);
-  border-radius: 100px;
-  padding: 6px 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-reset:hover {
-  background: rgba(0,220,255,0.1);
-  box-shadow: var(--glow-cyan);
-}
-
-/* Section tabs */
-.dash-tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 0 2rem;
-  background: var(--bg-base);
-  overflow-x: auto;
-}
-.dash-tab {
-  font-family: var(--font-data);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  color: var(--text-2);
-  padding: 14px 20px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-.dash-tab:hover { color: var(--text-1); }
-.dash-tab.active {
-  color: var(--cyan);
-  border-bottom-color: var(--cyan);
-}
-
-/* Dashboard content */
-.dash-content {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* Sections */
-.dash-section { display: none; }
-.dash-section.active { display: block; }
-
-/* Chat header */
-.chat-hero {
-  display: flex; align-items: center; gap: 1.5rem;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem 2rem;
-  margin-bottom: 1.5rem;
-  position: relative; overflow: hidden;
-}
-.chat-hero::before {
-  content: '';
-  position: absolute; top: 0; left: 0;
-  width: 3px; height: 100%;
-  background: linear-gradient(to bottom, var(--cyan), var(--purple));
-}
-.chat-avatar {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--cyan-d), var(--purple-d));
-  display: flex; align-items: center; justify-content: center;
-  font-size: 24px; font-weight: 800;
-  flex-shrink: 0;
-  border: 2px solid rgba(0,220,255,0.3);
-}
-.chat-info h1 {
-  font-size: 22px; font-weight: 800;
-  letter-spacing: -0.5px;
-}
-.chat-info .dates {
-  font-family: var(--font-data);
-  font-size: 12px;
-  color: var(--text-2);
-  margin-top: 4px;
-}
-.chat-info .chat-type-badge {
-  display: inline-block;
-  margin-top: 8px;
-  font-family: var(--font-data);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--cyan);
-  background: rgba(0,220,255,0.1);
-  border: 1px solid rgba(0,220,255,0.2);
-  border-radius: 4px;
-  padding: 2px 8px;
-}
-
-/* Bento metrics grid */
-.metrics-bento {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 1.5rem;
-}
-.metric-card {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.metric-card:hover {
-  border-color: rgba(0,220,255,0.2);
-  box-shadow: var(--glow-cyan);
-}
-.metric-card .m-icon {
-  font-size: 20px;
-  margin-bottom: 10px;
-  display: block;
-}
-.metric-card .m-label {
-  font-family: var(--font-data);
-  font-size: 10px;
-  color: var(--text-2);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.metric-card .m-value {
-  font-family: var(--font-data);
-  font-size: 26px;
-  font-weight: 500;
-  color: var(--text-1);
-  line-height: 1;
-}
-.metric-card .m-sub {
-  font-family: var(--font-data);
-  font-size: 11px;
-  color: var(--text-3);
-  margin-top: 4px;
-}
-.metric-card.highlight-cyan { border-color: rgba(0,220,255,0.3); }
-.metric-card.highlight-purple { border-color: rgba(168,85,247,0.3); }
-.metric-card.highlight-amber { border-color: rgba(245,158,11,0.3); }
-.metric-card.highlight-green { border-color: rgba(16,185,129,0.3); }
-
-/* Charts grid */
-.charts-grid {
-  display: grid;
-  gap: 1.5rem;
-}
-.charts-2col { grid-template-columns: 1fr 1fr; }
-.charts-3col { grid-template-columns: 1fr 1fr 1fr; }
-@media (max-width: 900px) {
-  .charts-2col, .charts-3col { grid-template-columns: 1fr; }
-}
-
-.chart-card {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.5rem;
-  position: relative;
-}
-.chart-card-title {
-  font-family: var(--font-data);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-2);
-  margin-bottom: 1.25rem;
-  display: flex; align-items: center; gap: 8px;
-}
-.chart-card-title::before {
-  content: '';
-  width: 3px; height: 12px;
-  border-radius: 2px;
-  background: var(--cyan);
-  display: inline-block;
-}
-.chart-card-title.purple::before { background: var(--purple); }
-.chart-card-title.amber::before { background: var(--amber); }
-.chart-card-title.green::before { background: var(--green); }
-.chart-card-title.pink::before { background: var(--pink); }
-
-.chart-wrap {
-  position: relative;
-  width: 100%;
-}
-
-/* Words cloud */
-.words-cloud {
-  display: flex; flex-wrap: wrap; gap: 8px;
-}
-.word-pill {
-  font-family: var(--font-data);
-  font-size: 12px;
-  color: var(--text-1);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 100px;
-  padding: 5px 14px;
-  transition: all 0.2s;
-  cursor: default;
-}
-.word-pill:hover {
-  border-color: var(--cyan);
-  color: var(--cyan);
-}
-.word-pill .wc { color: var(--text-3); margin-left: 4px; font-size: 10px; }
-
-/* Heatmap */
-.heatmap-grid {
-  display: grid;
-  grid-template-columns: 40px repeat(24, 1fr);
-  gap: 3px;
-  font-family: var(--font-data);
-  font-size: 9px;
-  color: var(--text-3);
-}
-.heatmap-cell {
-  height: 22px;
-  border-radius: 3px;
-  background: var(--bg-card);
-  transition: opacity 0.2s;
-  cursor: default;
-  position: relative;
-}
-.heatmap-cell:hover::after {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  color: var(--text-1);
-  white-space: nowrap;
-  z-index: 10;
-  pointer-events: none;
-}
-.heatmap-label { display: flex; align-items: center; color: var(--text-3); font-size: 10px; }
-.heatmap-hour { display: flex; align-items: center; justify-content: center; }
-
-/* Sender profile cards */
-.sender-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
-}
-.sender-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
-  transition: border-color 0.2s;
-}
-.sender-card:hover { border-color: rgba(0,220,255,0.2); }
-.sender-card-header {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 1rem;
-}
-.sender-avatar {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 16px;
-  flex-shrink: 0;
-}
-.sender-name { font-weight: 700; font-size: 15px; }
-.sender-rank { font-family: var(--font-data); font-size: 11px; color: var(--text-3); }
-.sender-stats {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.s-stat { background: var(--bg-panel); border-radius: 8px; padding: 8px 10px; }
-.s-stat-label { font-family: var(--font-data); font-size: 9px; color: var(--text-3); letter-spacing: 0.08em; }
-.s-stat-val { font-family: var(--font-data); font-size: 16px; font-weight: 500; color: var(--text-1); }
-.sender-bar-wrap { margin-top: 1rem; }
-.sender-bar-label { display: flex; justify-content: space-between; font-family: var(--font-data); font-size: 10px; color: var(--text-2); margin-bottom: 4px; }
-.sender-bar-track { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
-.sender-bar-fill { height: 100%; border-radius: 4px; }
-
-/* Timeline / monthly bars */
-.timeline-wrap { overflow-x: auto; }
-
-/* Emoji section */
-.emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
-}
-.emoji-item {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 8px;
-  text-align: center;
-  transition: border-color 0.2s;
-}
-.emoji-item:hover { border-color: rgba(0,220,255,0.3); }
-.emoji-item .ei-emoji { font-size: 28px; display: block; }
-.emoji-item .ei-count { font-family: var(--font-data); font-size: 11px; color: var(--text-2); margin-top: 4px; }
-
-/* Records */
-.records-list { display: flex; flex-direction: column; gap: 10px; }
-.record-item {
-  display: flex; align-items: center; gap: 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
-}
-.record-icon { font-size: 20px; flex-shrink: 0; }
-.record-info { flex: 1; }
-.record-label { font-size: 13px; font-weight: 600; }
-.record-detail { font-family: var(--font-data); font-size: 11px; color: var(--text-2); margin-top: 2px; }
-.record-val {
-  font-family: var(--font-data);
-  font-size: 18px; font-weight: 500;
-  color: var(--cyan);
-}
-
-/* Separator */
-.section-gap { margin-bottom: 1.5rem; }
-
-/* Legend row */
-.legend-row {
-  display: flex; flex-wrap: wrap; gap: 12px;
-  margin-bottom: 12px;
-  font-family: var(--font-data);
-  font-size: 11px;
-  color: var(--text-2);
-}
-.legend-dot {
-  width: 8px; height: 8px;
-  border-radius: 2px;
-  display: inline-block;
-  margin-right: 5px;
-  vertical-align: middle;
-}
-
-/* Toast / error */
-.toast {
-  position: fixed; bottom: 2rem; left: 50%;
-  transform: translateX(-50%);
-  background: #1a0a0a;
-  border: 1px solid var(--red);
-  border-radius: var(--radius-sm);
-  color: #ff8888;
-  font-family: var(--font-data);
-  font-size: 13px;
-  padding: 12px 24px;
-  z-index: 999;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.3s;
-}
-.toast.show { opacity: 1; pointer-events: auto; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-
-/* Animations */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.anim-in { animation: fadeInUp 0.4s ease both; }
-.anim-delay-1 { animation-delay: 0.05s; }
-.anim-delay-2 { animation-delay: 0.1s; }
-.anim-delay-3 { animation-delay: 0.15s; }
-
-@keyframes pulse-border {
-  0%, 100% { border-color: rgba(0,220,255,0.4); }
-  50%       { border-color: rgba(0,220,255,0.9); box-shadow: 0 0 20px rgba(0,220,255,0.2); }
-}
-.drop-zone { animation: pulse-border 3s ease-in-out infinite; }
-.drop-zone:hover, .drop-zone.drag-over { animation: none; }
-
-/* Responsive */
-@media (max-width: 640px) {
-  .dash-content { padding: 1rem; }
-  .metrics-bento { grid-template-columns: repeat(2, 1fr); }
-  .hint-steps { flex-direction: column; }
-  .chat-hero { flex-direction: column; align-items: flex-start; }
-}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.ain{animation:fadeInUp .35s ease both}
+.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}
+@media(max-width:600px){.dash-content{padding:1rem}.bento{grid-template-columns:repeat(2,1fr)}.chat-hero{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
 <body>
 
-<!-- ============================================================ UPLOAD SCREEN -->
+<!-- UPLOAD -->
 <div id="upload-screen">
   <div class="logo">
     <div class="logo-icon">✈️</div>
     <div class="logo-text">TG<span>Stats</span></div>
   </div>
-
-  <h1 class="hero-title anim-in">
-    Твоя переписка —<br><span class="accent">в красивих цифрах</span>
-  </h1>
-  <p class="hero-sub anim-in anim-delay-1">
-    Завантаж JSON-експорт з Telegram і отримай детальну аналітику:<br>
-    хто більше пише, коли найактивніші, улюблені слова та ще 20+ метрик
-  </p>
-
-  <div class="drop-zone anim-in anim-delay-2"
-       id="drop-zone"
-       onclick="document.getElementById('file-input').click()"
-       ondragover="handleDragOver(event)"
-       ondragleave="handleDragLeave(event)"
-       ondrop="handleDrop(event)">
+  <h1 class="hero-title ain">Твоя переписка —<br><span class="accent">в красивих цифрах</span></h1>
+  <p class="hero-sub ain d1">Завантаж result.json з Telegram Desktop і отримай повну аналітику по кожному чату окремо та загальну статистику</p>
+  <div class="drop-zone ain d2" id="drop-zone"
+       onclick="document.getElementById('fi').click()"
+       ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
     <span class="drop-icon">📂</span>
     <div class="drop-title">Перетягни result.json сюди</div>
-    <div class="drop-sub">або натисни щоб вибрати файл<br>підтримується експорт особистих чатів та групових чатів</div>
+    <div class="drop-sub">або натисни щоб вибрати файл<br>підтримується один чат та повний експорт акаунту</div>
   </div>
-  <input type="file" id="file-input" accept=".json" style="display:none" onchange="handleFile(this.files[0])">
-
-  <div class="hint-steps anim-in anim-delay-3">
-    <div class="hint-step">
-      <div class="step-num">КРОК 01</div>
-      <p>Відкрий Telegram Desktop → три крапки в чаті → Export Chat History</p>
-    </div>
-    <div class="hint-step">
-      <div class="step-num">КРОК 02</div>
-      <p>Вибери формат <strong>JSON</strong> та що включити (фото, стікери, голосові)</p>
-    </div>
-    <div class="hint-step">
-      <div class="step-num">КРОК 03</div>
-      <p>Знайди файл <strong>result.json</strong> в завантаженому архіві та завантаж сюди</p>
-    </div>
+  <input type="file" id="fi" accept=".json" style="display:none" onchange="handleFile(this.files[0])">
+  <div class="hint-steps ain d3">
+    <div class="hint-step"><div class="sn">КРОК 01</div><p>Telegram Desktop → три крапки в чаті → Export Chat History</p></div>
+    <div class="hint-step"><div class="sn">КРОК 02</div><p>Формат: <strong>JSON</strong>. Вибери що включити</p></div>
+    <div class="hint-step"><div class="sn">КРОК 03</div><p>Знайди <strong>result.json</strong> в архіві та завантаж</p></div>
   </div>
 </div>
 
-<!-- ============================================================ LOADING SCREEN -->
+<!-- LOADING -->
 <div id="loading-screen">
-  <div class="loader-ring"></div>
-  <div class="loader-text" id="loader-text">Читаємо файл...</div>
-  <div class="loader-bar-wrap">
-    <div class="loader-bar" id="loader-bar"></div>
-  </div>
-  <div class="loader-file" id="loader-file"></div>
+  <div class="lr"></div>
+  <div class="lt" id="lt">Читаємо файл...</div>
+  <div class="lb-wrap"><div class="lb" id="lb"></div></div>
+  <div class="lf" id="lf"></div>
 </div>
 
-<!-- ============================================================ DASHBOARD -->
+<!-- DASHBOARD -->
 <div id="dashboard">
-
-  <!-- Nav -->
   <nav class="dash-nav">
-    <div class="dash-nav-logo">TG<span>Stats</span></div>
-    <div class="dash-nav-right">
-      <div class="nav-badge" id="nav-msg-count">0 повідомлень</div>
-      <button class="btn-reset" onclick="resetApp()">↩ Інший файл</button>
+    <div class="nav-logo">TG<span>Stats</span></div>
+    <div class="nav-right">
+      <div class="nav-badge" id="nav-count">—</div>
+      <button class="btn-sm" onclick="resetApp()">↩ Інший файл</button>
     </div>
   </nav>
+
+  <!-- Chat switcher -->
+  <div class="chat-switcher-bar" id="chat-switcher"></div>
 
   <!-- Tabs -->
   <div class="dash-tabs">
@@ -767,855 +252,487 @@ body::before {
   </div>
 
   <div class="dash-content">
-
-    <!-- ── TAB: OVERVIEW ── -->
+    <!-- TAB OVERVIEW -->
     <div class="dash-section active" id="tab-overview">
-
-      <div class="chat-hero anim-in">
-        <div class="chat-avatar" id="hero-avatar"></div>
-        <div class="chat-info">
-          <h1 id="hero-name">Чат</h1>
-          <div class="dates" id="hero-dates"></div>
-          <div class="chat-type-badge" id="hero-type"></div>
-        </div>
+      <div class="chat-hero ain"><div class="ch-av" id="h-av"></div><div class="ch-info"><div class="ch-name" id="h-name"></div><div class="ch-dates" id="h-dates"></div><div class="ch-badge" id="h-type"></div></div></div>
+      <div class="bento" id="bento"></div>
+      <div class="g2 sg">
+        <div class="cc"><div class="ct">Повідомлення по місяцях</div><div class="cw" style="height:230px"><canvas id="ch-monthly"></canvas></div></div>
+        <div class="cc"><div class="ct p">Розподіл між учасниками</div><div class="cw" style="height:230px"><canvas id="ch-pie"></canvas></div></div>
       </div>
-
-      <div class="metrics-bento" id="metrics-bento"></div>
-
-      <div class="charts-grid charts-2col section-gap">
-        <div class="chart-card">
-          <div class="chart-card-title">Повідомлення по місяцях</div>
-          <div class="chart-wrap" style="height:240px">
-            <canvas id="chart-monthly" role="img" aria-label="Повідомлення по місяцях"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title purple">Розподіл між учасниками</div>
-          <div class="chart-wrap" style="height:240px">
-            <canvas id="chart-senders-pie" role="img" aria-label="Розподіл між учасниками"></canvas>
-          </div>
-        </div>
+      <div class="cc sg">
+        <div class="ct a">Типи медіа</div>
+        <div class="media-grid" id="media-tiles"></div>
       </div>
-
-      <div class="chart-card section-gap">
-        <div class="chart-card-title amber">Типи медіа</div>
-        <div class="chart-wrap" style="height:200px">
-          <canvas id="chart-media" role="img" aria-label="Типи медіа"></canvas>
-        </div>
-      </div>
-
     </div>
 
-    <!-- ── TAB: ACTIVITY ── -->
+    <!-- TAB ACTIVITY -->
     <div class="dash-section" id="tab-activity">
-
-      <div class="chart-card section-gap">
-        <div class="chart-card-title">Теплова карта: день × година</div>
-        <div id="heatmap-container"></div>
+      <div class="cc sg"><div class="ct">Теплова карта: день тижня × година</div><div id="heatmap"></div></div>
+      <div class="g2 sg">
+        <div class="cc"><div class="ct">Активність по днях тижня</div><div class="cw" style="height:250px"><canvas id="ch-weekday"></canvas></div></div>
+        <div class="cc"><div class="ct p">Активність по годинах доби</div><div class="cw" style="height:250px"><canvas id="ch-hours"></canvas></div></div>
       </div>
-
-      <div class="charts-grid charts-2col section-gap">
-        <div class="chart-card">
-          <div class="chart-card-title">Активність по днях тижня</div>
-          <div class="chart-wrap" style="height:260px">
-            <canvas id="chart-weekday" role="img" aria-label="Активність по днях тижня"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title purple">Активність по годинах</div>
-          <div class="chart-wrap" style="height:260px">
-            <canvas id="chart-hours" role="img" aria-label="Активність по годинах доби"></canvas>
-          </div>
-        </div>
+      <div class="cc sg">
+        <div class="ct g">Динаміка переписки (по місяцях)</div>
+        <div class="lr-row" id="monthly-legend"></div>
+        <div class="cw" style="height:190px"><canvas id="ch-monthly-line"></canvas></div>
       </div>
-
-      <div class="chart-card section-gap">
-        <div class="chart-card-title green">Швидкість відповіді (медіана, хвилини)</div>
-        <div id="response-info" style="font-family: var(--font-data); font-size:13px; color:var(--text-2); margin-bottom:1rem;"></div>
-        <div class="chart-wrap" style="height:200px">
-          <canvas id="chart-streak" role="img" aria-label="Повідомлення по місяцях (лінія)"></canvas>
-        </div>
+      <div class="cc sg">
+        <div class="ct b">Швидкість відповіді (медіана)</div>
+        <div id="resp-info" style="font-family:var(--fm);font-size:12px;color:var(--t2);margin-bottom:.75rem"></div>
       </div>
-
     </div>
 
-    <!-- ── TAB: SENDERS ── -->
+    <!-- TAB SENDERS -->
     <div class="dash-section" id="tab-senders">
-      <div class="sender-cards section-gap" id="sender-cards"></div>
-
-      <div class="charts-grid charts-2col section-gap">
-        <div class="chart-card">
-          <div class="chart-card-title">Хто пише довші повідомлення?</div>
-          <div class="chart-wrap" style="height:240px">
-            <canvas id="chart-avg-len" role="img" aria-label="Середня довжина повідомлення"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title purple">Активність по місяцях (стек)</div>
-          <div id="stacked-legend" class="legend-row"></div>
-          <div class="chart-wrap" style="height:220px">
-            <canvas id="chart-stacked" role="img" aria-label="Стекований графік по місяцях"></canvas>
-          </div>
-        </div>
+      <div class="sc-grid sg" id="sc-grid"></div>
+      <div class="g2 sg">
+        <div class="cc"><div class="ct">Середня довжина повідомлення</div><div class="cw" style="height:230px"><canvas id="ch-avglen"></canvas></div></div>
+        <div class="cc"><div class="ct p">Стек по місяцях</div><div class="lr-row" id="stacked-legend"></div><div class="cw" style="height:210px"><canvas id="ch-stacked"></canvas></div></div>
       </div>
     </div>
 
-    <!-- ── TAB: CONTENT ── -->
+    <!-- TAB CONTENT -->
     <div class="dash-section" id="tab-content">
-
-      <div class="chart-card section-gap">
-        <div class="chart-card-title">Топ-40 найчастіших слів</div>
-        <div class="words-cloud" id="words-cloud"></div>
+      <div class="cc sg"><div class="ct">Топ-40 найчастіших слів</div><div class="words-cloud" id="words-cloud"></div></div>
+      <div class="g2 sg">
+        <div class="cc"><div class="ct a">Найчастіші емодзі</div><div class="emoji-grid" id="emoji-grid"></div></div>
+        <div class="cc"><div class="ct pk">Розподіл довжин повідомлень</div><div class="cw" style="height:260px"><canvas id="ch-lengths"></canvas></div></div>
       </div>
-
-      <div class="charts-grid charts-2col section-gap">
-        <div class="chart-card">
-          <div class="chart-card-title amber">Найчастіші емодзі</div>
-          <div class="emoji-grid" id="emoji-grid"></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-title pink">Довжина повідомлень (розподіл)</div>
-          <div class="chart-wrap" style="height:280px">
-            <canvas id="chart-lengths" role="img" aria-label="Розподіл довжин повідомлень"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <div class="chart-card section-gap">
-        <div class="chart-card-title green">Медіа по місяцях</div>
-        <div class="chart-wrap" style="height:200px">
-          <canvas id="chart-media-monthly" role="img" aria-label="Медіа по місяцях"></canvas>
-        </div>
-      </div>
-
+      <div class="cc sg"><div class="ct g">Медіа по місяцях</div><div class="cw" style="height:190px"><canvas id="ch-media-m"></canvas></div></div>
     </div>
 
-    <!-- ── TAB: RECORDS ── -->
+    <!-- TAB RECORDS -->
     <div class="dash-section" id="tab-records">
-      <div class="records-list section-gap" id="records-list"></div>
-
-      <div class="chart-card section-gap">
-        <div class="chart-card-title">Топ-10 найактивніших днів</div>
-        <div class="chart-wrap" style="height:300px">
-          <canvas id="chart-top-days" role="img" aria-label="Топ активних днів"></canvas>
-        </div>
-      </div>
+      <div class="rec-list sg" id="rec-list"></div>
+      <div class="cc sg"><div class="ct">Топ-10 найактивніших днів</div><div class="cw" style="height:280px"><canvas id="ch-topdays"></canvas></div></div>
     </div>
+  </div>
+</div>
 
-  </div><!-- /dash-content -->
-</div><!-- /dashboard -->
-
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- ============================================================ JAVASCRIPT -->
 <script>
-// ─── palette used in charts ───────────────────────────────────────────────
-const PALETTE = [
-  '#00dcff','#a855f7','#f59e0b','#10b981','#ec4899',
-  '#3b82f6','#ef4444','#84cc16','#f97316','#06b6d4'
-];
-const CHART_DEFAULTS = {
-  font: { family: "'JetBrains Mono', monospace", size: 11 },
-  color: '#88889a'
-};
-Chart.defaults.font = CHART_DEFAULTS.font;
-Chart.defaults.color = CHART_DEFAULTS.color;
+// ── PALETTE ───────────────────────────────────────────────────────────────
+const PAL = ['#00dcff','#a855f7','#f59e0b','#10b981','#ec4899','#3b82f6','#ef4444','#84cc16','#f97316','#06b6d4'];
+Chart.defaults.font = { family:"'JetBrains Mono',monospace", size:11 };
+Chart.defaults.color = '#88889a';
 
-// ─── helpers ──────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 let charts = {};
-const UK_STOP = new Set(['і','й','в','на','до','що','як','це','але','та','не','з','а','о','у','по','за','при','від','про','так','вже','ще','чи','є','все','був','була','буде','тому','якщо','то','ж','б','би','мені','мене','тебе','він','вона','вони','ми','ви','їх','їм','його','її','цей','ця','ці','той','ті','лише','навіть','більш','можна','треба','собі','себе','нас','вас','них','ним','ними','яка','який','яке','які','щоб','через','між','без','над','під','коли','де','хто','ось','бо','тут','там','дуже','вже','ще','теж','також','тільки','можливо','якийсь','якась','якісь','такий','така','таке','такі','того','тому','тій','тих','тим','себе','може','треба','мою','твою','свою','наша','ваша','наші','ваші']);
-const RU_STOP = new Set(['и','в','на','до','что','как','это','но','за','при','от','про','так','уже','ещё','или','есть','все','был','была','будет','поэтому','если','то','же','бы','мне','меня','тебя','тебе','он','она','они','мы','вы','их','им','его','её','этот','эта','эти','тот','та','те','только','очень','можно','нужно','себя','нас','вас','них','им','ними','которая','который','которые','чтобы','через','между','без','над','под','когда','где','кто','вот','потому','здесь','там','очень','уже','ещё','тоже','также','только','может','надо','меня','тебя','него','её','нас','вас','их']);
+let ALL_CHATS = [];   // parsed chat objects
+let CURRENT = null;   // currently displayed stats
 
-function stopWords(w) { return UK_STOP.has(w) || RU_STOP.has(w); }
+// ── STOP WORDS ───────────────────────────────────────────────────────────
+const SW = new Set('і й в на до що як це але та не з а о у по за при від про так вже ще чи є все був була буде тому якщо то ж б би мені мене тебе він вона вони ми ви їх їм його її цей ця ці той та ті лише навіть більш можна треба собі себе нас вас них ним ними яка який яке які щоб через між без над під коли де хто ось бо тут там дуже теж також тільки може якийсь якась це ось ага ну окей ок так ні же аж вот ну-ну про або бо ій їй і і и и'.split(' '));
+const RW = new Set('и в на до что как это но за при от про так уже ещё или есть все был была будет если то же бы мне меня тебя тебе он она они мы вы их им его её этот эта эти тот та те только очень можно нужно себя нас вас них им ними которая который которые чтобы через между без над под когда где кто вот потому здесь там очень уже тоже также только может надо'.split(' '));
+function isSW(w){ return SW.has(w) || RW.has(w); }
 
-function getText(msg) {
-  if (typeof msg.text === 'string') return msg.text;
-  if (Array.isArray(msg.text)) return msg.text.map(t => typeof t === 'string' ? t : (t.text || '')).join('');
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function fmt(n){ if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return String(n); }
+function initials(s){ return (s||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase(); }
+function pc(i){ return PAL[i%PAL.length]; }
+function dchart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3500); }
+
+function getText(msg){
+  if(typeof msg.text==='string') return msg.text;
+  if(Array.isArray(msg.text)) return msg.text.map(t=>typeof t==='string'?t:(t.text||'')).join('');
   return '';
 }
 
-function fmt(n) {
-  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
-  return n.toLocaleString('uk-UA');
+// extract links from message text entities
+function getLinks(msg){
+  const links=[];
+  const ent = Array.isArray(msg.text_entities) ? msg.text_entities : [];
+  ent.forEach(e=>{ if(e.type==='link'||e.type==='text_link') links.push(e.text||e.href||''); });
+  return links;
 }
 
-function senderColor(i) { return PALETTE[i % PALETTE.length]; }
-
-function initials(name) {
-  return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-}
-
-function destroyChart(id) {
-  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
-}
-
-function showToast(msg) {
-  const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3500);
-}
-
-// ─── drag & drop ──────────────────────────────────────────────────────────
-function handleDragOver(e) { e.preventDefault(); $('drop-zone').classList.add('drag-over'); }
-function handleDragLeave() { $('drop-zone').classList.remove('drag-over'); }
-function handleDrop(e) {
-  e.preventDefault();
-  $('drop-zone').classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) handleFile(f);
-}
-
-// ─── file read ────────────────────────────────────────────────────────────
-function handleFile(file) {
-  if (!file) return;
-  $('loader-file').textContent = file.name + ' · ' + (file.size / 1024 / 1024).toFixed(1) + ' MB';
-  showLoading();
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      setLoader('Парсимо JSON...', 40);
-      const data = JSON.parse(e.target.result);
-      setLoader('Аналізуємо повідомлення...', 65);
-      setTimeout(() => {
-        try {
-          const stats = analyze(data);
-          setLoader('Будуємо дашборд...', 90);
-          setTimeout(() => {
-            render(stats);
-            setLoader('Готово!', 100);
-            setTimeout(() => showDashboard(), 300);
-          }, 200);
-        } catch(err) {
-          hideLoading();
-          showToast('Помилка аналізу: ' + err.message);
-          console.error(err);
-        }
-      }, 100);
-    } catch(err) {
-      hideLoading();
-      showToast('Невалідний JSON файл. Спробуй знову.');
-    }
-  };
-  reader.readAsText(file);
-}
-
-function showLoading() {
-  $('upload-screen').style.display = 'none';
-  const ls = $('loading-screen');
-  ls.classList.add('active');
-  setLoader('Читаємо файл...', 15);
-}
-function hideLoading() {
-  $('loading-screen').classList.remove('active');
-  $('upload-screen').style.display = 'flex';
-}
-function setLoader(txt, pct) {
-  $('loader-text').textContent = txt;
-  $('loader-bar').style.width = pct + '%';
-}
-function showDashboard() {
-  $('loading-screen').classList.remove('active');
-  $('upload-screen').style.display = 'none';
-  $('dashboard').classList.add('active');
-}
-
-function resetApp() {
-  $('dashboard').classList.remove('active');
-  $('upload-screen').style.display = 'flex';
-  $('file-input').value = '';
-  Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; });
-}
-
-// ─── TAB SWITCHING ────────────────────────────────────────────────────────
-function switchTab(name) {
-  document.querySelectorAll('.dash-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
-  document.querySelectorAll('.dash-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
-}
-
-// ─── ANALYSIS ─────────────────────────────────────────────────────────────
-function resolveData(raw) {
-  // Format 1: single chat export { name, type, messages: [...] }
-  if (Array.isArray(raw.messages) && raw.messages.length) {
-    return { name: raw.name || 'Чат', type: raw.type || 'personal_chat', messages: raw.messages };
+// ── FORMAT DETECT ─────────────────────────────────────────────────────────
+function resolveChats(raw){
+  // single chat
+  if(Array.isArray(raw.messages) && raw.messages.length){
+    return [{ name: raw.name||'Чат', type: raw.type||'personal_chat', messages: raw.messages }];
   }
-  // Format 2: full account export { chats: { list: [ { name, type, messages }, ... ] } }
-  if (raw.chats && Array.isArray(raw.chats.list)) {
-    const allMsgs = [];
-    let name = 'Мій Telegram', type = 'personal_chat';
-    raw.chats.list.forEach((chat, i) => {
-      if (Array.isArray(chat.messages)) {
-        if (i === 0) { name = chat.name || name; type = chat.type || type; }
-        chat.messages.forEach(m => allMsgs.push({ ...m, _chat: chat.name || ('Чат ' + (i+1)) }));
-      }
-    });
-    if (allMsgs.length) return { name, type, messages: allMsgs };
-  }
-  // Format 3: root-level list (some export variants)
-  if (Array.isArray(raw)) {
-    const allMsgs = raw.flatMap(c => Array.isArray(c.messages) ? c.messages : []);
-    if (allMsgs.length) return { name: raw[0].name || 'Чат', type: raw[0].type || 'personal_chat', messages: allMsgs };
+  // full export
+  if(raw.chats && Array.isArray(raw.chats.list)){
+    return raw.chats.list.filter(c=>Array.isArray(c.messages)&&c.messages.length>0);
   }
   throw new Error('Не вдалося розпізнати формат. Завантаж result.json з Telegram Desktop.');
 }
 
-function analyze(data) {
-  const resolved = resolveData(data);
-  const messages = resolved.messages.filter(m => m.type === 'message');
-  if (!messages.length) throw new Error('Немає повідомлень у файлі');
+// ── DRAG & DROP ───────────────────────────────────────────────────────────
+function handleDragOver(e){ e.preventDefault(); $('drop-zone').classList.add('drag-over'); }
+function handleDragLeave(){ $('drop-zone').classList.remove('drag-over'); }
+function handleDrop(e){ e.preventDefault(); $('drop-zone').classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f) handleFile(f); }
 
-  const chatName = resolved.name;
-  const chatType = resolved.type;
+function handleFile(file){
+  if(!file) return;
+  $('lf').textContent = file.name+' · '+(file.size/1024/1024).toFixed(1)+' MB';
+  showLoading();
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      setLoader('Парсимо JSON…',35);
+      const raw=JSON.parse(e.target.result);
+      setLoader('Розпізнаємо чати…',55);
+      setTimeout(()=>{
+        try{
+          const chatList=resolveChats(raw);
+          setLoader('Аналізуємо повідомлення…',75);
+          setTimeout(()=>{
+            ALL_CHATS=chatList.map(c=>analyzeChat(c));
+            const merged=mergeStats(ALL_CHATS);
+            ALL_CHATS.unshift(merged); // index 0 = global
+            setLoader('Будуємо дашборд…',90);
+            setTimeout(()=>{
+              buildSwitcher();
+              showChat(0);
+              setLoader('Готово!',100);
+              setTimeout(showDashboard,300);
+            },150);
+          },100);
+        }catch(err){ hideLoading(); toast('Помилка: '+err.message); console.error(err); }
+      },80);
+    }catch(err){ hideLoading(); toast('Невалідний JSON'); }
+  };
+  reader.readAsText(file);
+}
 
-  const senderMap = {}; // name → { msgs, words, chars, photos, videos, voices, stickers, files, reactions, msgList }
-  const byDay = {};     // YYYY-MM-DD → count
-  const byMonth = {};   // YYYY-MM → { [sender]: count }
-  const byHour = new Array(24).fill(0);
-  const byWeekday = new Array(7).fill(0);
-  const byDayBySender = {}; // YYYY-MM-DD → { [sender]: count }
-  const wordFreq = {};
-  const emojiFreq = {};
-  const lengthBuckets = { '1-50': 0, '51-150': 0, '151-300': 0, '301-500': 0, '500+': 0 };
-  const mediaByMonth = {}; // YYYY-MM → { photo, video, voice, sticker }
-  const responseTimes = {}; // [sender] → [seconds]
+function showLoading(){ $('upload-screen').style.display='none'; $('loading-screen').classList.add('active'); setLoader('Читаємо файл…',15); }
+function hideLoading(){ $('loading-screen').classList.remove('active'); $('upload-screen').style.display='flex'; }
+function setLoader(t,p){ $('lt').textContent=t; $('lb').style.width=p+'%'; }
+function showDashboard(){ $('loading-screen').classList.remove('active'); $('dashboard').classList.add('active'); }
+function resetApp(){ $('dashboard').classList.remove('active'); $('upload-screen').style.display='flex'; $('fi').value=''; Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];}); ALL_CHATS=[]; }
 
-  let photoCount = 0, videoCount = 0, voiceCount = 0, stickerCount = 0, fileCount = 0;
-  let firstDate = null, lastDate = null;
-  let longestMsg = { text: '', len: 0, sender: '', date: '' };
-  let mostEmoji = { msg: '', count: 0, sender: '' };
+function switchTab(n){ document.querySelectorAll('.dash-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===n)); document.querySelectorAll('.dash-section').forEach(s=>s.classList.toggle('active',s.id==='tab-'+n)); }
 
-  const EMOJI_RE = /(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/gu;
-  const WORD_RE = /[а-яіїєґa-zA-Z']{3,}/g;
+// ── SWITCHER ─────────────────────────────────────────────────────────────
+function buildSwitcher(){
+  const bar=$('chat-switcher');
+  bar.innerHTML='';
+  ALL_CHATS.forEach((s,i)=>{
+    const p=document.createElement('div');
+    p.className='chat-pill'+(i===0?' active':'');
+    p.textContent=i===0?'🌐 Всі чати':s.chatName;
+    p.onclick=()=>showChat(i);
+    bar.appendChild(p);
+  });
+}
 
-  let prevMsg = null;
+function showChat(idx){
+  document.querySelectorAll('.chat-pill').forEach((p,i)=>p.classList.toggle('active',i===idx));
+  CURRENT=ALL_CHATS[idx];
+  render(CURRENT);
+}
 
-  messages.forEach(msg => {
-    const sender = msg.from || 'Невідомо';
-    if (!senderMap[sender]) {
-      senderMap[sender] = { msgs: 0, words: 0, chars: 0, photos: 0, videos: 0, voices: 0, stickers: 0, files: 0 };
-      responseTimes[sender] = [];
-    }
-    const sd = senderMap[sender];
+// ── ANALYZE ONE CHAT ─────────────────────────────────────────────────────
+function analyzeChat(chatObj){
+  const msgs=(chatObj.messages||[]).filter(m=>m.type==='message');
+  const chatName=chatObj.name||'Чат';
+  const chatType=chatObj.type||'personal_chat';
+
+  const senderMap={};
+  const byDay={}, byMonth={}, byHour=new Array(24).fill(0), byWeekday=new Array(7).fill(0);
+  const wordFreq={}, emojiFreq={};
+  const lengthBuckets={'1-50':0,'51-150':0,'151-300':0,'301-500':0,'500+':0};
+
+  // media counts (detailed)
+  let mPhoto=0,mVideo=0,mCircle=0,mVoice=0,mAudio=0,mSticker=0,mFile=0,mLink=0,mGif=0;
+  const mediaByMonth={};
+
+  let firstDate=null,lastDate=null;
+  let longestMsg={text:'',len:0,sender:'',date:''};
+  let mostEmoji={msg:'',count:0,sender:''};
+  const responseTimes={};
+  let prevMsg=null;
+
+  const EMOJI_RE=/(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)/gu;
+  const WORD_RE=/[а-яіїєґa-zA-Z']{3,}/g;
+
+  msgs.forEach(msg=>{
+    const sender=msg.from||'Невідомо';
+    if(!senderMap[sender]) senderMap[sender]={msgs:0,words:0,chars:0,photos:0,videos:0,circles:0,voices:0,stickers:0,links:0,files:0};
+    if(!responseTimes[sender]) responseTimes[sender]=[];
+    const sd=senderMap[sender];
     sd.msgs++;
 
-    const date = new Date(msg.date);
-    if (!firstDate || date < firstDate) firstDate = date;
-    if (!lastDate || date > lastDate) lastDate = date;
-
+    const date=new Date(msg.date);
+    if(!firstDate||date<firstDate) firstDate=date;
+    if(!lastDate||date>lastDate) lastDate=date;
     byHour[date.getHours()]++;
     byWeekday[date.getDay()]++;
+    const dk=date.toISOString().slice(0,10);
+    byDay[dk]=(byDay[dk]||0)+1;
+    const mk=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+    if(!byMonth[mk]) byMonth[mk]={};
+    byMonth[mk][sender]=(byMonth[mk][sender]||0)+1;
+    if(!mediaByMonth[mk]) mediaByMonth[mk]={photo:0,video:0,circle:0,voice:0,sticker:0,link:0};
 
-    const dayKey = date.toISOString().slice(0, 10);
-    byDay[dayKey] = (byDay[dayKey] || 0) + 1;
-
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
-    if (!byMonth[monthKey]) byMonth[monthKey] = {};
-    byMonth[monthKey][sender] = (byMonth[monthKey][sender] || 0) + 1;
-    if (!byDayBySender[dayKey]) byDayBySender[dayKey] = {};
-    byDayBySender[dayKey][sender] = (byDayBySender[dayKey][sender] || 0) + 1;
-
-    if (!mediaByMonth[monthKey]) mediaByMonth[monthKey] = { photo: 0, video: 0, voice: 0, sticker: 0 };
-
-    // Response time
-    if (prevMsg && prevMsg.from !== sender) {
-      const diff = (date - new Date(prevMsg.date)) / 1000;
-      if (diff > 0 && diff < 86400) responseTimes[sender].push(diff);
+    // response time
+    if(prevMsg&&prevMsg.from!==sender){
+      const diff=(date-new Date(prevMsg.date))/1000;
+      if(diff>0&&diff<86400) responseTimes[sender].push(diff);
     }
-    prevMsg = msg;
+    prevMsg=msg;
 
-    // Media
-    if (msg.photo) { sd.photos++; photoCount++; mediaByMonth[monthKey].photo++; }
-    else if (msg.media_type === 'video_file' || msg.media_type === 'video_message') { sd.videos++; videoCount++; mediaByMonth[monthKey].video++; }
-    else if (msg.media_type === 'voice_message' || msg.media_type === 'audio_file') { sd.voices++; voiceCount++; mediaByMonth[monthKey].voice++; }
-    else if (msg.media_type === 'sticker') { sd.stickers++; stickerCount++; mediaByMonth[monthKey].sticker++; }
-    else if (msg.file) { sd.files++; fileCount++; }
+    // MEDIA (detailed)
+    const mt=msg.media_type||'';
+    if(msg.photo){ sd.photos++; mPhoto++; mediaByMonth[mk].photo++; }
+    else if(mt==='video_message'){ sd.circles++; mCircle++; mediaByMonth[mk].circle++; }
+    else if(mt==='video_file'){ sd.videos++; mVideo++; mediaByMonth[mk].video++; }
+    else if(mt==='voice_message'){ sd.voices++; mVoice++; mediaByMonth[mk].voice++; }
+    else if(mt==='audio_file'){ mAudio++; }
+    else if(mt==='sticker'){ sd.stickers++; mSticker++; mediaByMonth[mk].sticker++; }
+    else if(mt==='animation'||mt==='gif'){ mGif++; }
+    else if(msg.file&&!mt){ sd.files++; mFile++; }
+
+    // Links from text entities
+    const links=getLinks(msg);
+    if(links.length){ sd.links+=links.length; mLink+=links.length; mediaByMonth[mk].link=(mediaByMonth[mk].link||0)+links.length; }
 
     // Text
-    const text = getText(msg);
-    if (text) {
-      const len = text.length;
-      sd.chars += len;
-      if (len <= 50) lengthBuckets['1-50']++;
-      else if (len <= 150) lengthBuckets['51-150']++;
-      else if (len <= 300) lengthBuckets['151-300']++;
-      else if (len <= 500) lengthBuckets['301-500']++;
+    const text=getText(msg);
+    if(text){
+      const len=text.length;
+      sd.chars+=len;
+      if(len>longestMsg.len) longestMsg={text:text.slice(0,120),len,sender,date:msg.date};
+      if(len<=50) lengthBuckets['1-50']++;
+      else if(len<=150) lengthBuckets['51-150']++;
+      else if(len<=300) lengthBuckets['151-300']++;
+      else if(len<=500) lengthBuckets['301-500']++;
       else lengthBuckets['500+']++;
-      if (len > longestMsg.len) longestMsg = { text: text.slice(0, 120), len, sender, date: msg.date };
-
-      // Words
-      const words = text.toLowerCase().match(WORD_RE) || [];
-      words.forEach(w => {
-        if (!stopWords(w) && w.length >= 3) {
-          wordFreq[w] = (wordFreq[w] || 0) + 1;
-          sd.words++;
-        }
-      });
-      // chars already counted above
-
-      // Emoji
-      const emojis = text.match(EMOJI_RE) || [];
-      emojis.forEach(em => { emojiFreq[em] = (emojiFreq[em] || 0) + 1; });
-      if (emojis.length > mostEmoji.count) mostEmoji = { msg: text.slice(0, 80), count: emojis.length, sender };
+      const words=(text.toLowerCase().match(WORD_RE)||[]);
+      words.forEach(w=>{ if(!isSW(w)&&w.length>=3){ wordFreq[w]=(wordFreq[w]||0)+1; sd.words++; } });
+      const emojis=text.match(EMOJI_RE)||[];
+      emojis.forEach(em=>{ emojiFreq[em]=(emojiFreq[em]||0)+1; });
+      if(emojis.length>mostEmoji.count) mostEmoji={msg:text.slice(0,80),count:emojis.length,sender};
     }
   });
 
-  const senders = Object.keys(senderMap).sort((a, b) => senderMap[b].msgs - senderMap[a].msgs);
-  const sortedMonths = Object.keys(byMonth).sort();
-  const totalDays = firstDate && lastDate ? Math.max(1, Math.round((lastDate - firstDate) / 86400000)) : 1;
-  const totalMessages = messages.length;
-  const totalWords = Object.values(wordFreq).reduce((s, n) => s + n, 0);
+  const senders=Object.keys(senderMap).sort((a,b)=>senderMap[b].msgs-senderMap[a].msgs);
+  const sortedMonths=Object.keys(byMonth).sort();
+  const totalDays=firstDate&&lastDate?Math.max(1,Math.round((lastDate-firstDate)/86400000)):1;
+  const totalWords=Object.values(wordFreq).reduce((s,n)=>s+n,0);
+  const bestDay=Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  const topDays=Object.entries(byDay).sort((a,b)=>b[1]-a[1]).slice(0,10);
 
-  // Best day
-  const bestDay = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
-  const topDays = Object.entries(byDay).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  // streaks
+  const dayKeys=Object.keys(byDay).sort();
+  let maxStreak=0,cur=0,prevD=null;
+  dayKeys.forEach(d=>{ const dd=new Date(d); if(prevD&&(dd-prevD)/86400000===1) cur++; else cur=1; if(cur>maxStreak) maxStreak=cur; prevD=dd; });
 
-  // Response medians per sender
-  const responseMedians = {};
-  senders.forEach(s => {
-    const arr = responseTimes[s].sort((a, b) => a - b);
-    if (arr.length) {
-      const mid = Math.floor(arr.length / 2);
-      responseMedians[s] = arr.length % 2 ? arr[mid] : (arr[mid-1] + arr[mid]) / 2;
-    } else { responseMedians[s] = null; }
-  });
+  const peakHour=byHour.indexOf(Math.max(...byHour));
+  const peakWeekday=['Нд','Пн','Вт','Ср','Чт','Пт','Сб'][byWeekday.indexOf(Math.max(...byWeekday))];
 
-  // Avg char per sender
-  const avgCharPerSender = {};
-  senders.forEach(s => {
-    avgCharPerSender[s] = senderMap[s].msgs > 0 ? Math.round(senderMap[s].chars / senderMap[s].msgs) : 0;
-  });
+  const topWords=Object.entries(wordFreq).sort((a,b)=>b[1]-a[1]).slice(0,40);
+  const topEmoji=Object.entries(emojiFreq).sort((a,b)=>b[1]-a[1]).slice(0,20);
 
-  // Streak: max consecutive days
-  const dayKeys = Object.keys(byDay).sort();
-  let maxStreak = 0, curStreak = 0, prevD = null;
-  dayKeys.forEach(d => {
-    const cur = new Date(d);
-    if (prevD) {
-      const diff = (cur - prevD) / 86400000;
-      curStreak = diff === 1 ? curStreak + 1 : 1;
-    } else { curStreak = 1; }
-    if (curStreak > maxStreak) maxStreak = curStreak;
-    prevD = cur;
-  });
-
-  // Peak hour
-  const peakHour = byHour.indexOf(Math.max(...byHour));
-  const peakWeekday = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'][byWeekday.indexOf(Math.max(...byWeekday))];
-
-  // Top words / emoji
-  const topWords = Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 40);
-  const topEmoji = Object.entries(emojiFreq).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const responseMedians={};
+  senders.forEach(s=>{ const arr=responseTimes[s].sort((a,b)=>a-b); if(arr.length){ const m=Math.floor(arr.length/2); responseMedians[s]=arr.length%2?arr[m]:(arr[m-1]+arr[m])/2; }else{ responseMedians[s]=null; } });
+  const avgChar={};
+  senders.forEach(s=>{ avgChar[s]=senderMap[s].msgs>0?Math.round(senderMap[s].chars/senderMap[s].msgs):0; });
 
   return {
-    chatName, chatType, firstDate, lastDate,
-    totalMessages, totalDays, totalWords, photoCount, videoCount, voiceCount, stickerCount, fileCount,
-    senders, senderMap, byMonth, sortedMonths, byHour, byWeekday, byDay, byDayBySender,
-    topWords, topEmoji, lengthBuckets,
-    bestDay, topDays, maxStreak, peakHour, peakWeekday,
-    responseMedians, avgCharPerSender, mediaByMonth, longestMsg, mostEmoji
+    chatName,chatType,firstDate,lastDate,totalDays,totalWords,
+    messages:msgs,totalMessages:msgs.length,
+    senders,senderMap,byMonth,sortedMonths,byHour,byWeekday,byDay,
+    mPhoto,mVideo,mCircle,mVoice,mAudio,mSticker,mFile,mLink,mGif,
+    mediaByMonth,lengthBuckets,topWords,topEmoji,
+    bestDay,topDays,maxStreak,peakHour,peakWeekday,
+    responseMedians,avgChar,longestMsg,mostEmoji,
+    isGlobal:false
   };
 }
 
-// ─── RENDER ───────────────────────────────────────────────────────────────
-function render(s) {
+// ── MERGE ALL CHATS ───────────────────────────────────────────────────────
+function mergeStats(chatStats){
+  // Just re-analyze all messages together
+  const allMessages=[];
+  chatStats.forEach(cs=>{ cs.messages.forEach(m=>allMessages.push(m)); });
+  const merged=analyzeChat({ name:'Всі чати', type:'merged', messages:allMessages });
+  merged.chatName='Всі чати';
+  merged.isGlobal=true;
+  merged.totalChats=chatStats.length;
+  return merged;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render(s){
+  $('nav-count').textContent=fmt(s.totalMessages)+' повідомлень';
   renderHeader(s);
-  renderMetrics(s);
-  renderOverviewCharts(s);
-  renderActivityCharts(s);
-  renderSenderCards(s);
-  renderSenderCharts(s);
+  renderBento(s);
+  renderOverview(s);
+  renderActivity(s);
+  renderSenders(s);
   renderContent(s);
   renderRecords(s);
-  $('nav-msg-count').textContent = fmt(s.totalMessages) + ' повідомлень';
 }
 
-function renderHeader(s) {
-  $('hero-avatar').textContent = initials(s.chatName);
-  $('hero-name').textContent = s.chatName;
-  const f = s.firstDate?.toLocaleDateString('uk-UA', { day:'numeric', month:'long', year:'numeric' }) || '';
-  const l = s.lastDate?.toLocaleDateString('uk-UA', { day:'numeric', month:'long', year:'numeric' }) || '';
-  $('hero-dates').textContent = f + ' — ' + l;
-  $('hero-type').textContent = s.chatType === 'personal_chat' ? 'ОСОБИСТИЙ ЧАТ'
-    : s.chatType === 'private_group' ? 'ПРИВАТНА ГРУПА'
-    : s.chatType === 'private_supergroup' ? 'СУПЕРГРУПА' : s.chatType.toUpperCase();
+function renderHeader(s){
+  const av=$('h-av');
+  av.textContent=s.isGlobal?'🌐':initials(s.chatName);
+  av.style.background=s.isGlobal?'linear-gradient(135deg,#00dcff,#a855f7)':'linear-gradient(135deg,'+pc(0)+'88,'+pc(1)+'88)';
+  $('h-name').textContent=s.chatName;
+  const f=s.firstDate?.toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'})||'';
+  const l=s.lastDate?.toLocaleDateString('uk-UA',{day:'numeric',month:'long',year:'numeric'})||'';
+  $('h-dates').textContent=f+' — '+l;
+  $('h-type').textContent=s.isGlobal?('ВСЬОГО ЧАТІВ: '+s.totalChats):({'personal_chat':'ОСОБИСТИЙ ЧАТ','private_group':'ПРИВАТНА ГРУПА','private_supergroup':'СУПЕРГРУПА'}[s.chatType]||s.chatType.toUpperCase());
 }
 
-function renderMetrics(s) {
-  const avgPerDay = (s.totalMessages / s.totalDays).toFixed(1);
-  const cards = [
-    { icon:'💬', label:'Повідомлень', val: fmt(s.totalMessages), sub: avgPerDay + ' на день', cls:'highlight-cyan' },
-    { icon:'📅', label:'Днів листування', val: fmt(s.totalDays), sub: 'з ' + (s.firstDate?.getFullYear() || '?'), cls:'' },
-    { icon:'🔤', label:'Слів написано', val: fmt(s.totalWords), sub: '', cls:'' },
-    { icon:'👥', label:'Учасників', val: s.senders.length, sub: '', cls:'highlight-purple' },
-    { icon:'🖼', label:'Фото', val: fmt(s.photoCount), sub: '', cls:'' },
-    { icon:'🎥', label:'Відео', val: fmt(s.videoCount), sub: '', cls:'' },
-    { icon:'🎙', label:'Голосових', val: fmt(s.voiceCount), sub: '', cls:'' },
-    { icon:'😄', label:'Стікерів', val: fmt(s.stickerCount), sub: '', cls:'highlight-amber' },
-    { icon:'🔥', label:'Макс. streak', val: s.maxStreak + 'д', sub: 'поспіль', cls:'highlight-green' },
-    { icon:'⏰', label:'Пікова година', val: s.peakHour + ':00', sub: '', cls:'' },
-    { icon:'📆', label:'Піковий день', val: s.peakWeekday, sub: '', cls:'' },
-    { icon:'🏆', label:'Рекорд за день', val: fmt(s.bestDay[1]), sub: s.bestDay[0], cls:'highlight-cyan' },
+function renderBento(s){
+  const avgDay=(s.totalMessages/s.totalDays).toFixed(1);
+  const topS=s.senders[0]||'—';
+  const data=[
+    {icon:'💬',label:'Повідомлень',val:fmt(s.totalMessages),sub:avgDay+' на день',hl:'hl-c'},
+    {icon:'📅',label:'Днів листування',val:fmt(s.totalDays),sub:''},
+    {icon:'🔤',label:'Слів написано',val:fmt(s.totalWords),sub:''},
+    {icon:'👥',label:'Учасників',val:s.senders.length,sub:'',hl:'hl-p'},
+    {icon:'🖼',label:'Фото',val:fmt(s.mPhoto),sub:''},
+    {icon:'🎬',label:'Відео',val:fmt(s.mVideo),sub:''},
+    {icon:'⭕',label:'Кружечки',val:fmt(s.mCircle),sub:'',hl:'hl-a'},
+    {icon:'🎙',label:'Голосові',val:fmt(s.mVoice),sub:''},
+    {icon:'😄',label:'Стікери',val:fmt(s.mSticker),sub:''},
+    {icon:'🔗',label:'Посилання',val:fmt(s.mLink),sub:''},
+    {icon:'🔥',label:'Streak',val:s.maxStreak+'д',sub:'поспіль',hl:'hl-g'},
+    {icon:'🏆',label:'Рекорд/день',val:fmt(s.bestDay[1]),sub:s.bestDay[0],hl:'hl-c'},
   ];
-  $('metrics-bento').innerHTML = cards.map(c => `
-    <div class="metric-card ${c.cls}">
-      <span class="m-icon">${c.icon}</span>
-      <div class="m-label">${c.label}</div>
-      <div class="m-value">${c.val}</div>
-      ${c.sub ? `<div class="m-sub">${c.sub}</div>` : ''}
-    </div>`).join('');
+  $('bento').innerHTML=data.map(d=>`<div class="mc ${d.hl||''}"><span class="mc-icon">${d.icon}</span><div class="mc-label">${d.label}</div><div class="mc-value">${d.val}</div>${d.sub?`<div class="mc-sub">${d.sub}</div>`:''}</div>`).join('');
 }
 
-function mkChart(id, config) {
-  destroyChart(id);
-  const ctx = $(id);
-  if (!ctx) return;
-  charts[id] = new Chart(ctx, config);
+function mkChart(id,cfg){ dchart(id); const ctx=$(id); if(!ctx) return; charts[id]=new Chart(ctx,cfg); }
+
+function renderOverview(s){
+  const ml=s.sortedMonths.map(m=>{const[y,mo]=m.split('-');return mo+'.'+y.slice(2);});
+  const mt=s.sortedMonths.map(m=>Object.values(s.byMonth[m]).reduce((a,b)=>a+b,0));
+  mkChart('ch-monthly',{type:'bar',data:{labels:ml,datasets:[{data:mt,backgroundColor:'#00dcff44',borderColor:'#00dcff',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{autoSkip:true,maxTicksLimit:18}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
+
+  const top8=s.senders.slice(0,8);
+  mkChart('ch-pie',{type:'doughnut',data:{labels:top8,datasets:[{data:top8.map(sd=>s.senderMap[sd].msgs),backgroundColor:PAL.slice(0,8),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{boxWidth:9,padding:8}}}}});
+
+  // Detailed media tiles
+  const tiles=[
+    {icon:'🖼️',label:'Фото',val:s.mPhoto},
+    {icon:'🎬',label:'Відео',val:s.mVideo},
+    {icon:'⭕',label:'Відео-кружечки',val:s.mCircle},
+    {icon:'🎙️',label:'Голосові',val:s.mVoice},
+    {icon:'🎵',label:'Аудіо',val:s.mAudio},
+    {icon:'😄',label:'Стікери',val:s.mSticker},
+    {icon:'🎞️',label:'GIF',val:s.mGif},
+    {icon:'🔗',label:'Посилання',val:s.mLink},
+    {icon:'📎',label:'Файли',val:s.mFile},
+  ];
+  $('media-tiles').innerHTML=tiles.map(t=>`<div class="media-tile"><span class="mt-icon">${t.icon}</span><div class="mt-label">${t.label}</div><div class="mt-val">${fmt(t.val)}</div></div>`).join('');
 }
 
-function renderOverviewCharts(s) {
-  // Monthly total
-  const monthLabels = s.sortedMonths.map(m => { const [y,mo]=m.split('-'); return mo+'.'+y.slice(2); });
-  const monthTotals = s.sortedMonths.map(m => Object.values(s.byMonth[m]).reduce((a,b)=>a+b,0));
-  mkChart('chart-monthly', {
-    type: 'bar',
-    data: {
-      labels: monthLabels,
-      datasets: [{ data: monthTotals, backgroundColor: '#00dcff44', borderColor: '#00dcff', borderWidth: 1, borderRadius: 4 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { autoSkip: true, maxTicksLimit: 18 } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
+function renderActivity(s){
+  // Heatmap
+  const dn=['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const maxH=Math.max(...s.byHour)||1;
+  let hm='<div class="hm"><div class="hm-lbl"></div>';
+  for(let h=0;h<24;h++) hm+=`<div class="hm-h">${h}</div>`;
+  dn.forEach((d,di)=>{
+    hm+=`<div class="hm-lbl">${d}</div>`;
+    for(let h=0;h<24;h++){
+      const v=Math.round(s.byHour[h]*s.byWeekday[di]/s.totalMessages*7);
+      const a=Math.max(0.05,v/maxH);
+      hm+=`<div class="hm-cell" style="background:rgba(0,220,255,${a.toFixed(2)})" data-tip="${d} ${h}:00 ~ ${v} пов."></div>`;
     }
   });
+  hm+='</div>';
+  $('heatmap').innerHTML=hm;
 
-  // Senders pie
-  mkChart('chart-senders-pie', {
-    type: 'doughnut',
-    data: {
-      labels: s.senders.slice(0, 8),
-      datasets: [{ data: s.senders.slice(0,8).map(sd => s.senderMap[sd].msgs), backgroundColor: PALETTE.slice(0,8), borderWidth: 0 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      cutout: '62%',
-      plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 10 } } }
-    }
-  });
+  mkChart('ch-weekday',{type:'bar',data:{labels:dn,datasets:[{data:s.byWeekday,backgroundColor:dn.map((_,i)=>PAL[i%PAL.length]+'88'),borderColor:dn.map((_,i)=>PAL[i%PAL.length]),borderWidth:1,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
+  mkChart('ch-hours',{type:'line',data:{labels:Array.from({length:24},(_,i)=>i+':00'),datasets:[{data:s.byHour,borderColor:'#a855f7',backgroundColor:'rgba(168,85,247,0.12)',fill:true,tension:0.4,pointRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
 
-  // Media horizontal bar
-  const mediaLabels = ['Фото', 'Відео', 'Голосові', 'Стікери', 'Файли'];
-  const mediaCounts = [s.photoCount, s.videoCount, s.voiceCount, s.stickerCount, s.fileCount];
-  mkChart('chart-media', {
-    type: 'bar',
-    data: {
-      labels: mediaLabels,
-      datasets: [{ data: mediaCounts, backgroundColor: [PALETTE[0],PALETTE[2],PALETTE[3],PALETTE[1],PALETTE[4]], borderRadius: 6 }]
-    },
-    options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: { grid: { display: false } }
-      }
-    }
-  });
-}
+  const top8=s.senders.slice(0,4);
+  const ml=s.sortedMonths.map(m=>{const[y,mo]=m.split('-');return mo+'.'+y.slice(2);});
+  $('monthly-legend').innerHTML=top8.map((n,i)=>`<span><span class="lr-dot" style="background:${PAL[i%PAL.length]}"></span>${n}</span>`).join('');
+  mkChart('ch-monthly-line',{type:'line',data:{labels:ml,datasets:top8.map((n,i)=>({label:n,data:s.sortedMonths.map(m=>s.byMonth[m][n]||0),borderColor:PAL[i%PAL.length],backgroundColor:'transparent',tension:0.4,pointRadius:2,borderWidth:1.5}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{autoSkip:true,maxTicksLimit:18}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
 
-function renderActivityCharts(s) {
-  // Heatmap (weekday × hour)
-  const heatData = {}; // 'D-H' → count
-  Object.entries(s.byDayBySender || s.byDay).forEach(([day, val]) => {
-    // byDay is fine for heatmap; we don't have day×hour cross in current model
-  });
-
-  // Build hour × weekday heatmap using individual msgs — we stored byHour and byWeekday separately
-  // Approximate: use byHour distribution across weekdays proportionally
-  const dayNames = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
-  const heatContainer = $('heatmap-container');
-  const maxHour = Math.max(...s.byHour);
-
-  let html = `<div class="heatmap-grid">`;
-  // hour header row
-  html += `<div class="heatmap-label"></div>`;
-  for (let h = 0; h < 24; h++) html += `<div class="heatmap-hour">${h}</div>`;
-  // rows by weekday
-  dayNames.forEach((d, di) => {
-    html += `<div class="heatmap-label">${d}</div>`;
-    for (let h = 0; h < 24; h++) {
-      const val = Math.round(s.byHour[h] * s.byWeekday[di] / (s.totalMessages || 1) * 7);
-      const pct = maxHour > 0 ? val / maxHour : 0;
-      const alpha = Math.max(0.05, pct);
-      const color = `rgba(0,220,255,${alpha.toFixed(2)})`;
-      html += `<div class="heatmap-cell" style="background:${color}" data-tip="${d} ${h}:00 ~ ${val} пов."></div>`;
-    }
-  });
-  html += `</div>`;
-  heatContainer.innerHTML = html;
-
-  // Weekday bar
-  mkChart('chart-weekday', {
-    type: 'bar',
-    data: {
-      labels: dayNames,
-      datasets: [{ data: s.byWeekday, backgroundColor: dayNames.map((_,i) => PALETTE[i%PALETTE.length] + '88'), borderColor: dayNames.map((_,i) => PALETTE[i%PALETTE.length]), borderWidth: 1, borderRadius: 6 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { x: { grid: { display: false } }, y: { grid: { color: 'rgba(255,255,255,0.04)' } } }
-    }
-  });
-
-  // Hour polar / line
-  mkChart('chart-hours', {
-    type: 'line',
-    data: {
-      labels: Array.from({length:24},(_,i)=>i+':00'),
-      datasets: [{
-        data: s.byHour,
-        borderColor: '#a855f7',
-        backgroundColor: 'rgba(168,85,247,0.15)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointBackgroundColor: '#a855f7'
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
-
-  // Streak line (monthly)
-  mkChart('chart-streak', {
-    type: 'line',
-    data: {
-      labels: s.sortedMonths.map(m => { const [y,mo]=m.split('-'); return mo+'.'+y.slice(2); }),
-      datasets: [{
-        data: s.sortedMonths.map(m => Object.values(s.byMonth[m]).reduce((a,b)=>a+b,0)),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16,185,129,0.1)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 2
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { autoSkip: true, maxTicksLimit: 18 } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
-
-  // Response info
-  const respLines = s.senders.map(sd => {
-    const med = s.responseMedians[sd];
-    if (med === null) return null;
-    const mins = Math.round(med / 60);
-    return `<span style="color:${senderColor(s.senders.indexOf(sd))}">${sd}</span>: ${mins < 1 ? '&lt;1 хв' : mins + ' хв'}`;
+  // Response medians
+  const lines=s.senders.map((sd,i)=>{
+    const med=s.responseMedians[sd];
+    if(med===null) return null;
+    const mins=Math.round(med/60);
+    return `<span style="color:${PAL[i%PAL.length]}">${sd}</span>: ${mins<1?'<1 хв':mins+' хв'}`;
   }).filter(Boolean);
-  $('response-info').innerHTML = respLines.join(' &nbsp;|&nbsp; ') || 'Недостатньо даних';
+  $('resp-info').innerHTML=lines.join(' &nbsp;|&nbsp; ')||'Недостатньо даних';
 }
 
-function renderSenderCards(s) {
-  const colors = PALETTE;
-  const html = s.senders.slice(0, 8).map((name, i) => {
-    const sd = s.senderMap[name];
-    const pct = Math.round(sd.msgs / s.totalMessages * 100);
-    const med = s.responseMedians[name];
-    const medStr = med !== null ? (Math.round(med/60) < 1 ? '<1хв' : Math.round(med/60)+'хв') : '—';
-    const avgChar = s.avgCharPerSender[name] || 0;
-    const col = colors[i % colors.length];
-    return `
-    <div class="sender-card">
-      <div class="sender-card-header">
-        <div class="sender-avatar" style="background:${col}22; color:${col}; border: 1.5px solid ${col}44">${initials(name)}</div>
-        <div>
-          <div class="sender-name">${name}</div>
-          <div class="sender-rank" style="color:${col}">#${i+1} · ${pct}% повідомлень</div>
-        </div>
-      </div>
-      <div class="sender-stats">
-        <div class="s-stat"><div class="s-stat-label">ПОВІДОМЛЕНЬ</div><div class="s-stat-val" style="color:${col}">${fmt(sd.msgs)}</div></div>
-        <div class="s-stat"><div class="s-stat-label">СЕРЕДНЯ ВІД.</div><div class="s-stat-val">${medStr}</div></div>
-        <div class="s-stat"><div class="s-stat-label">ФОТО</div><div class="s-stat-val">${fmt(sd.photos)}</div></div>
-        <div class="s-stat"><div class="s-stat-label">СИМВОЛІВ/ПОВ.</div><div class="s-stat-val">${avgChar}</div></div>
-      </div>
-      <div class="sender-bar-wrap">
-        <div class="sender-bar-label"><span>${name}</span><span>${pct}%</span></div>
-        <div class="sender-bar-track"><div class="sender-bar-fill" style="width:${pct}%;background:${col}"></div></div>
-      </div>
-    </div>`;
-  }).join('');
-  $('sender-cards').innerHTML = html;
-}
-
-function renderSenderCharts(s) {
-  // Avg msg length
-  const topSenders = s.senders.slice(0, 8);
-  mkChart('chart-avg-len', {
-    type: 'bar',
-    data: {
-      labels: topSenders,
-      datasets: [{ data: topSenders.map(sd => s.avgCharPerSender[sd]), backgroundColor: topSenders.map((_,i)=>PALETTE[i%PALETTE.length]+'99'), borderRadius: 6 }]
-    },
-    options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { x: { grid: { color: 'rgba(255,255,255,0.04)' } }, y: { grid: { display: false } } }
-    }
-  });
-
-  // Stacked monthly
-  const stackedDatasets = topSenders.map((name, i) => ({
-    label: name,
-    data: s.sortedMonths.map(m => s.byMonth[m][name] || 0),
-    backgroundColor: PALETTE[i % PALETTE.length] + '99',
-    borderColor: PALETTE[i % PALETTE.length],
-    borderWidth: 0,
-    borderRadius: 3
-  }));
-  $('stacked-legend').innerHTML = topSenders.map((n,i) => `<span><span class="legend-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${n}</span>`).join('');
-  mkChart('chart-stacked', {
-    type: 'bar',
-    data: {
-      labels: s.sortedMonths.map(m => { const [y,mo]=m.split('-'); return mo+'.'+y.slice(2); }),
-      datasets: stackedDatasets
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 18 } },
-        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
-}
-
-function renderContent(s) {
-  // Word cloud
-  const maxW = s.topWords[0]?.[1] || 1;
-  $('words-cloud').innerHTML = s.topWords.map(([w, c]) => {
-    const size = 11 + Math.round((c / maxW) * 10);
-    return `<div class="word-pill" style="font-size:${size}px">${w}<span class="wc">${c}</span></div>`;
+function renderSenders(s){
+  const top8=s.senders.slice(0,8);
+  $('sc-grid').innerHTML=top8.map((name,i)=>{
+    const sd=s.senderMap[name];
+    const pct=Math.round(sd.msgs/s.totalMessages*100);
+    const col=PAL[i%PAL.length];
+    const med=s.responseMedians[name];
+    const medStr=med!==null?(Math.round(med/60)<1?'<1хв':Math.round(med/60)+'хв'):'—';
+    return `<div class="sc"><div class="sc-hdr"><div class="sc-av" style="background:${col}22;color:${col};border:1.5px solid ${col}44">${initials(name)}</div><div><div class="sc-name">${name}</div><div class="sc-rank" style="color:${col}">#${i+1} · ${pct}%</div></div></div>
+    <div class="sc-stats">
+      <div class="ss"><div class="ss-l">Повідомлень</div><div class="ss-v" style="color:${col}">${fmt(sd.msgs)}</div></div>
+      <div class="ss"><div class="ss-l">Відповідь</div><div class="ss-v">${medStr}</div></div>
+      <div class="ss"><div class="ss-l">Фото</div><div class="ss-v">${fmt(sd.photos)}</div></div>
+      <div class="ss"><div class="ss-l">Симв./пов.</div><div class="ss-v">${s.avgChar[name]||0}</div></div>
+      <div class="ss"><div class="ss-l">Стікери</div><div class="ss-v">${fmt(sd.stickers)}</div></div>
+      <div class="ss"><div class="ss-l">Посилань</div><div class="ss-v">${fmt(sd.links)}</div></div>
+    </div>
+    <div class="sc-bar"><div class="sc-bl"><span>${name}</span><span>${pct}%</span></div><div class="sc-bt"><div class="sc-bf" style="width:${pct}%;background:${col}"></div></div></div></div>`;
   }).join('');
 
-  // Emoji
-  if (s.topEmoji.length) {
-    $('emoji-grid').innerHTML = s.topEmoji.map(([em, c]) => `
-      <div class="emoji-item">
-        <span class="ei-emoji">${em}</span>
-        <div class="ei-count">${fmt(c)}</div>
-      </div>`).join('');
-  } else {
-    $('emoji-grid').innerHTML = '<div style="color:var(--text-3);font-size:13px;font-family:var(--font-data)">Емодзі не знайдено</div>';
-  }
+  mkChart('ch-avglen',{type:'bar',data:{labels:top8,datasets:[{data:top8.map(sd=>s.avgChar[sd]),backgroundColor:top8.map((_,i)=>PAL[i%PAL.length]+'88'),borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{display:false}}}}});
 
-  // Length buckets
-  const bKeys = Object.keys(s.lengthBuckets);
-  mkChart('chart-lengths', {
-    type: 'bar',
-    data: {
-      labels: bKeys,
-      datasets: [{ label: 'Символів', data: bKeys.map(k => s.lengthBuckets[k]), backgroundColor: PALETTE.slice(0,5).map(c=>c+'99'), borderRadius: 6 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
-
-  // Media monthly
-  const mm = s.sortedMonths;
-  mkChart('chart-media-monthly', {
-    type: 'line',
-    data: {
-      labels: mm.map(m => { const [y,mo]=m.split('-'); return mo+'.'+y.slice(2); }),
-      datasets: [
-        { label: 'Фото', data: mm.map(m=>(s.mediaByMonth[m]||{}).photo||0), borderColor: PALETTE[0], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
-        { label: 'Відео', data: mm.map(m=>(s.mediaByMonth[m]||{}).video||0), borderColor: PALETTE[2], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
-        { label: 'Голосові', data: mm.map(m=>(s.mediaByMonth[m]||{}).voice||0), borderColor: PALETTE[3], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
-        { label: 'Стікери', data: mm.map(m=>(s.mediaByMonth[m]||{}).sticker||0), borderColor: PALETTE[1], backgroundColor: 'transparent', tension: 0.3, pointRadius: 2 },
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top', labels: { boxWidth: 10, padding: 10 } } },
-      scales: {
-        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { autoSkip: true, maxTicksLimit: 18 } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
+  $('stacked-legend').innerHTML=top8.map((n,i)=>`<span><span class="lr-dot" style="background:${PAL[i%PAL.length]}"></span>${n}</span>`).join('');
+  const ml=s.sortedMonths.map(m=>{const[y,mo]=m.split('-');return mo+'.'+y.slice(2);});
+  mkChart('ch-stacked',{type:'bar',data:{labels:ml,datasets:top8.map((n,i)=>({label:n,data:s.sortedMonths.map(m=>s.byMonth[m][n]||0),backgroundColor:PAL[i%PAL.length]+'99',borderWidth:0,borderRadius:2}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{stacked:true,grid:{display:false},ticks:{autoSkip:true,maxTicksLimit:18}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.04)'}}}}});
 }
 
-function renderRecords(s) {
-  const peakHourStr = `${s.peakHour}:00–${s.peakHour+1}:00`;
-  const bestDayDate = s.bestDay[0] !== '—' ? new Date(s.bestDay[0]).toLocaleDateString('uk-UA', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : '—';
-  const topSender = s.senders[0] || '—';
-  const topSenderPct = Math.round((s.senderMap[topSender]?.msgs || 0) / s.totalMessages * 100);
+function renderContent(s){
+  const maxW=s.topWords[0]?.[1]||1;
+  $('words-cloud').innerHTML=s.topWords.map(([w,c])=>`<div class="wp" style="font-size:${11+Math.round(c/maxW*10)}px">${w}<span class="wc">${c}</span></div>`).join('');
 
-  const items = [
-    { icon: '🏆', label: 'Рекордний день', detail: bestDayDate, val: fmt(s.bestDay[1]) + ' пов.' },
-    { icon: '🔥', label: 'Найдовша серія', detail: 'днів поспіль без перерви', val: s.maxStreak + ' дн.' },
-    { icon: '⏰', label: 'Пік активності', detail: 'найактивніша година', val: peakHourStr },
-    { icon: '📅', label: 'Пік по днях', detail: 'найактивніший день тижня', val: s.peakWeekday },
-    { icon: '👑', label: 'Головний автор', detail: topSender + ' · ' + topSenderPct + '% всіх повідомлень', val: fmt(s.senderMap[topSender]?.msgs || 0) },
-    { icon: '📝', label: 'Найдовше повідомлення', detail: s.longestMsg.sender ? (s.longestMsg.sender + ' · ' + new Date(s.longestMsg.date).toLocaleDateString('uk-UA')) : '—', val: fmt(s.longestMsg.len) + ' симв.' },
-    { icon: '📷', label: 'Фото відіслано', detail: 'за весь час листування', val: fmt(s.photoCount) },
-    { icon: '😂', label: 'Стікерів надіслано', detail: '', val: fmt(s.stickerCount) },
-    { icon: '🎙', label: 'Голосових', detail: '', val: fmt(s.voiceCount) },
-    { icon: '🔤', label: 'Слів написано', detail: 'без стоп-слів', val: fmt(s.totalWords) },
-    { icon: '📈', label: 'Середній темп', detail: 'повідомлень на день', val: (s.totalMessages / s.totalDays).toFixed(1) },
+  $('emoji-grid').innerHTML=s.topEmoji.length
+    ? s.topEmoji.map(([em,c])=>`<div class="ei"><span class="ei-e">${em}</span><div class="ei-c">${fmt(c)}</div></div>`).join('')
+    : '<div style="color:var(--t3);font-family:var(--fm);font-size:12px">Емодзі не знайдено</div>';
+
+  const bk=Object.keys(s.lengthBuckets);
+  mkChart('ch-lengths',{type:'bar',data:{labels:bk,datasets:[{data:bk.map(k=>s.lengthBuckets[k]),backgroundColor:PAL.slice(0,5).map(c=>c+'99'),borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
+
+  const mm=s.sortedMonths;
+  const ml2=mm.map(m=>{const[y,mo]=m.split('-');return mo+'.'+y.slice(2);});
+  mkChart('ch-media-m',{type:'line',data:{labels:ml2,datasets:[
+    {label:'Фото',data:mm.map(m=>(s.mediaByMonth[m]||{}).photo||0),borderColor:PAL[0],backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Відео',data:mm.map(m=>(s.mediaByMonth[m]||{}).video||0),borderColor:PAL[2],backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Кружечки',data:mm.map(m=>(s.mediaByMonth[m]||{}).circle||0),borderColor:PAL[4],backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Голосові',data:mm.map(m=>(s.mediaByMonth[m]||{}).voice||0),borderColor:PAL[3],backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Стікери',data:mm.map(m=>(s.mediaByMonth[m]||{}).sticker||0),borderColor:PAL[1],backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5},
+    {label:'Посилання',data:mm.map(m=>(s.mediaByMonth[m]||{}).link||0),borderColor:PAL[5],backgroundColor:'transparent',tension:0.3,pointRadius:2,borderWidth:1.5},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:9,padding:8}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{autoSkip:true,maxTicksLimit:18}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
+}
+
+function renderRecords(s){
+  const topS=s.senders[0]||'—';
+  const topPct=Math.round((s.senderMap[topS]?.msgs||0)/s.totalMessages*100);
+  const bdDate=s.bestDay[0]!=='—'?new Date(s.bestDay[0]).toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
+  const items=[
+    {icon:'🏆',label:'Рекордний день',detail:bdDate,val:fmt(s.bestDay[1])+' пов.'},
+    {icon:'🔥',label:'Найдовша серія',detail:'днів поспіль',val:s.maxStreak+'д'},
+    {icon:'⏰',label:'Пік активності',detail:'найактивніша година',val:s.peakHour+':00'},
+    {icon:'📆',label:'Піковий день тижня',detail:'',val:s.peakWeekday},
+    {icon:'👑',label:'Головний автор',detail:topS+' · '+topPct+'%',val:fmt(s.senderMap[topS]?.msgs||0)},
+    {icon:'📝',label:'Найдовше повідомлення',detail:s.longestMsg.sender||'—',val:fmt(s.longestMsg.len)+' симв.'},
+    {icon:'⭕',label:'Відео-кружечки',detail:'тільки кружечки, не звичайне відео',val:fmt(s.mCircle)},
+    {icon:'🔗',label:'Посилань надіслано',detail:'',val:fmt(s.mLink)},
+    {icon:'📷',label:'Фото',detail:'',val:fmt(s.mPhoto)},
+    {icon:'🎙',label:'Голосових',detail:'',val:fmt(s.mVoice)},
+    {icon:'😄',label:'Стікерів',detail:'',val:fmt(s.mSticker)},
+    {icon:'📈',label:'Середній темп',detail:'повідомлень на день',val:(s.totalMessages/s.totalDays).toFixed(1)},
   ];
+  $('rec-list').innerHTML=items.map(it=>`<div class="ri"><div class="ri-icon">${it.icon}</div><div class="ri-info"><div class="ri-label">${it.label}</div><div class="ri-detail">${it.detail}</div></div><div class="ri-val">${it.val}</div></div>`).join('');
 
-  $('records-list').innerHTML = items.map(it => `
-    <div class="record-item">
-      <div class="record-icon">${it.icon}</div>
-      <div class="record-info">
-        <div class="record-label">${it.label}</div>
-        <div class="record-detail">${it.detail}</div>
-      </div>
-      <div class="record-val">${it.val}</div>
-    </div>`).join('');
-
-  // Top days chart
-  mkChart('chart-top-days', {
-    type: 'bar',
-    data: {
-      labels: s.topDays.map(([d]) => new Date(d).toLocaleDateString('uk-UA', { day:'numeric', month:'short' })),
-      datasets: [{ data: s.topDays.map(([,v])=>v), backgroundColor: PALETTE.slice(0,10).map(c=>c+'99'), borderColor: PALETTE.slice(0,10), borderWidth: 1, borderRadius: 8 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: 'rgba(255,255,255,0.04)' } }
-      }
-    }
-  });
+  mkChart('ch-topdays',{type:'bar',data:{labels:s.topDays.map(([d])=>new Date(d).toLocaleDateString('uk-UA',{day:'numeric',month:'short'})),datasets:[{data:s.topDays.map(([,v])=>v),backgroundColor:PAL.slice(0,10).map(c=>c+'99'),borderColor:PAL.slice(0,10),borderWidth:1,borderRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(255,255,255,0.04)'}}}}});
 }
 </script>
 </body>
