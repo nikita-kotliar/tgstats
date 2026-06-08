@@ -1,10 +1,30 @@
 # TGStats — Telegram Chat Analyzer
 
-Красивий аналізатор переписки з Telegram. Завантажуєш `result.json` - отримуєш повну статистику.
+Красивий аналізатор переписки з Telegram. Завантажуєш `result.json` — отримуєш повну статистику.
+
+## 🚀 Деплой
+
+### Netlify (найшвидший варіант)
+1. Зайди на [netlify.com](https://netlify.com) → "Add new site" → "Deploy manually"
+2. Перетягни **цю папку** (`tgstats/`) у вікно деплою
+3. Готово — отримаєш посилання типу `https://amazing-name-123.netlify.app`
+
+### Vercel
+```bash
+npm i -g vercel
+cd tgstats
+vercel --prod
+```
+
+### GitHub Pages
+1. Створи репозиторій на GitHub
+2. Завантаж файли з цієї папки
+3. Settings → Pages → Source: main branch / root
+4. Через хвилину сайт буде на `https://username.github.io/repo-name`
 
 ## 📋 Як отримати result.json
 
-1. Відкрий **Telegram Desktop**
+1. Відкрий **Telegram Desktop** (не мобільний)
 2. Зайди у потрібний чат
 3. Три крапки (⋯) → **Export Chat History**
 4. Формат: **JSON**
@@ -23,3 +43,10 @@
 ## 🔒 Приватність
 
 Всі дані обробляються **локально у браузері**. Нічого не відправляється на сервер.
+
+## 🎨 Дизайн
+
+Побудовано за принципами **ui-ux-pro-max** skill:
+- Стиль: Dark OLED + Data-Dense Dashboard + Bento Grid
+- Типографіка: Syne (заголовки) + JetBrains Mono (дані)
+- Палітра: Electric Cyan + Vivid Purple + Amber на чорному тлі

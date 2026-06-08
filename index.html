@@ -5,13 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TG Stats — Telegram Chat Analyzer</title>
 
+<!-- Fonts: Syne (display) + JetBrains Mono (data) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 
+<!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <style>
+/* ============================================================
+   DESIGN SYSTEM — ui-ux-pro-max: Data-Dense Dashboard + Dark OLED
+   Style: Cyberpunk/HUD + Bento Grid
+   Colors: Deep Black + Electric Cyan + Vivid Purple + Amber
+   Typography: Syne (headers) + JetBrains Mono (data)
+   ============================================================ */
 
 :root {
   --bg-base:     #080810;
@@ -1028,12 +1036,38 @@ function switchTab(name) {
 }
 
 // ─── ANALYSIS ─────────────────────────────────────────────────────────────
+function resolveData(raw) {
+  // Format 1: single chat export { name, type, messages: [...] }
+  if (Array.isArray(raw.messages) && raw.messages.length) {
+    return { name: raw.name || 'Чат', type: raw.type || 'personal_chat', messages: raw.messages };
+  }
+  // Format 2: full account export { chats: { list: [ { name, type, messages }, ... ] } }
+  if (raw.chats && Array.isArray(raw.chats.list)) {
+    const allMsgs = [];
+    let name = 'Мій Telegram', type = 'personal_chat';
+    raw.chats.list.forEach((chat, i) => {
+      if (Array.isArray(chat.messages)) {
+        if (i === 0) { name = chat.name || name; type = chat.type || type; }
+        chat.messages.forEach(m => allMsgs.push({ ...m, _chat: chat.name || ('Чат ' + (i+1)) }));
+      }
+    });
+    if (allMsgs.length) return { name, type, messages: allMsgs };
+  }
+  // Format 3: root-level list (some export variants)
+  if (Array.isArray(raw)) {
+    const allMsgs = raw.flatMap(c => Array.isArray(c.messages) ? c.messages : []);
+    if (allMsgs.length) return { name: raw[0].name || 'Чат', type: raw[0].type || 'personal_chat', messages: allMsgs };
+  }
+  throw new Error('Не вдалося розпізнати формат. Завантаж result.json з Telegram Desktop.');
+}
+
 function analyze(data) {
-  const messages = (data.messages || []).filter(m => m.type === 'message');
+  const resolved = resolveData(data);
+  const messages = resolved.messages.filter(m => m.type === 'message');
   if (!messages.length) throw new Error('Немає повідомлень у файлі');
 
-  const chatName = data.name || 'Чат';
-  const chatType = data.type || 'personal_chat';
+  const chatName = resolved.name;
+  const chatType = resolved.type;
 
   const senderMap = {}; // name → { msgs, words, chars, photos, videos, voices, stickers, files, reactions, msgList }
   const byDay = {};     // YYYY-MM-DD → count
@@ -1103,11 +1137,11 @@ function analyze(data) {
     if (text) {
       const len = text.length;
       sd.chars += len;
-      if (len > 50) lengthBuckets['51-150']++;
       if (len <= 50) lengthBuckets['1-50']++;
-      if (len > 150) { lengthBuckets['51-150']--; lengthBuckets['151-300']++; }
-      if (len > 300) { lengthBuckets['151-300']--; lengthBuckets['301-500']++; }
-      if (len > 500) { lengthBuckets['301-500']--; lengthBuckets['500+']++; }
+      else if (len <= 150) lengthBuckets['51-150']++;
+      else if (len <= 300) lengthBuckets['151-300']++;
+      else if (len <= 500) lengthBuckets['301-500']++;
+      else lengthBuckets['500+']++;
       if (len > longestMsg.len) longestMsg = { text: text.slice(0, 120), len, sender, date: msg.date };
 
       // Words
@@ -1118,7 +1152,7 @@ function analyze(data) {
           sd.words++;
         }
       });
-      sd.chars += 0; // already added
+      // chars already counted above
 
       // Emoji
       const emojis = text.match(EMOJI_RE) || [];
