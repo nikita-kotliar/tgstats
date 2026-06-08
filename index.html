@@ -211,9 +211,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;
        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
     <span class="drop-icon">📂</span>
     <div class="drop-title">Перетягни result.json сюди</div>
-    <div class="drop-sub">або натисни щоб вибрати файл<br>підтримується один чат та повний експорт акаунту</div>
+    <div class="drop-sub">або натисни щоб вибрати файл<br>підтримується JSON та HTML експорт Telegram</div>
   </div>
-  <input type="file" id="fi" accept=".json" style="display:none" onchange="handleFile(this.files[0])">
+  <input type="file" id="fi" accept=".json,.html,text/html" style="display:none" onchange="handleFile(this.files[0])">
   <div class="hint-steps ain d3">
     <div class="hint-step"><div class="sn">КРОК 01</div><p>Telegram Desktop → три крапки в чаті → Export Chat History</p></div>
     <div class="hint-step"><div class="sn">КРОК 02</div><p>Формат: <strong>JSON</strong>. Вибери що включити</p></div>
@@ -350,6 +350,115 @@ function getLinks(msg){
   return links;
 }
 
+
+// ── PARSE HTML EXPORT ────────────────────────────────────────────────────
+function parseHTMLExport(html, filename){
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Chat name from <div class="page_header"> or <title>
+  let chatName = '';
+  const pageHeader = doc.querySelector('.page_header .text');
+  if(pageHeader) chatName = pageHeader.textContent.trim();
+  if(!chatName){
+    const title = doc.querySelector('title');
+    if(title) chatName = title.textContent.replace('Exported','').replace('–','').trim();
+  }
+  if(!chatName) chatName = filename.replace('.html','');
+
+  const messages = [];
+  const msgDivs = doc.querySelectorAll('.message.default');
+
+  let lastFrom = '';
+  let lastFromId = '';
+
+  msgDivs.forEach((div, idx) => {
+    try {
+      // sender
+      const fromEl = div.querySelector('.from_name');
+      if(fromEl && fromEl.textContent.trim()) {
+        lastFrom = fromEl.textContent.trim();
+        lastFromId = 'user_' + lastFrom.replace(/\s+/g,'_').toLowerCase();
+      }
+      const from = lastFrom || 'Невідомо';
+
+      // date
+      const dateEl = div.querySelector('.date');
+      const dateTitle = dateEl ? (dateEl.getAttribute('title') || dateEl.textContent.trim()) : '';
+      // title format: "23.07.2025 00:35:34" or "Jul 23, 2025 00:35:34"
+      let dateISO = '';
+      // try DD.MM.YYYY HH:MM:SS
+      const dmyMatch = dateTitle.match(/(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}:\d{2}:\d{2})/);
+      if(dmyMatch){
+        dateISO = `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}T${dmyMatch[4]}`;
+      } else {
+        // fallback: try native Date parse
+        const d = new Date(dateTitle);
+        if(!isNaN(d)) dateISO = d.toISOString().slice(0,19);
+      }
+      if(!dateISO) return;
+
+      // text
+      const textEl = div.querySelector('.text');
+      let text = '';
+      if(textEl){
+        // preserve line breaks
+        textEl.querySelectorAll('br').forEach(br => br.replaceWith('
+'));
+        text = textEl.textContent.trim();
+      }
+
+      // media type detection
+      let media_type = '';
+      let photo = null;
+      let file = null;
+
+      const mediaWrap = div.querySelector('.media_wrap, .media_photo, .photo_wrap');
+      const videoEl = div.querySelector('video');
+      const audioEl = div.querySelector('audio');
+      const imgEl = div.querySelector('.photo_wrap img, .media_photo img, img.photo');
+      const stickerEl = div.querySelector('.sticker_wrap, .media_sticker');
+      const linkEl = div.querySelector('.link_preview, a.block_link');
+      const roundEl = div.querySelector('.media_video.round, .round_video');
+
+      if(stickerEl){ media_type = 'sticker'; }
+      else if(roundEl){ media_type = 'video_message'; }
+      else if(videoEl){ media_type = 'video_file'; }
+      else if(audioEl){
+        // voice vs audio: voice usually has waveform
+        const isVoice = div.querySelector('.voice_message, .media_voice_message') !== null;
+        media_type = isVoice ? 'voice_message' : 'audio_file';
+      }
+      else if(imgEl){ photo = imgEl.src || 'photo'; }
+
+      // links in text_entities
+      const text_entities = [];
+      if(textEl){
+        textEl.querySelectorAll('a[href]').forEach(a => {
+          text_entities.push({ type:'link', text: a.href });
+        });
+      }
+
+      messages.push({
+        id: idx,
+        type: 'message',
+        date: dateISO,
+        from,
+        from_id: lastFromId,
+        text,
+        text_entities,
+        media_type: media_type || undefined,
+        photo: photo || undefined,
+        file: file || undefined,
+      });
+    } catch(e){ /* skip malformed */ }
+  });
+
+  if(!messages.length) throw new Error('Не знайдено повідомлень у HTML файлі. Переконайся що це messages.html з Telegram.');
+
+  return [{ name: chatName, type: 'personal_chat', messages }];
+}
+
 // ── FORMAT DETECT ─────────────────────────────────────────────────────────
 function resolveChats(raw){
   // single chat
@@ -372,33 +481,38 @@ function handleFile(file){
   if(!file) return;
   $('lf').textContent = file.name+' · '+(file.size/1024/1024).toFixed(1)+' MB';
   showLoading();
+  const isHTML = file.name.endsWith('.html') || file.type==='text/html';
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      setLoader('Парсимо JSON…',35);
-      const raw=JSON.parse(e.target.result);
-      setLoader('Розпізнаємо чати…',55);
+      let chatList;
+      if(isHTML){
+        setLoader('Парсимо HTML…',35);
+        chatList = parseHTMLExport(e.target.result, file.name);
+      } else {
+        setLoader('Парсимо JSON…',35);
+        const raw=JSON.parse(e.target.result);
+        setLoader('Розпізнаємо чати…',55);
+        chatList=resolveChats(raw);
+      }
+      setLoader('Аналізуємо повідомлення…',70);
       setTimeout(()=>{
         try{
-          const chatList=resolveChats(raw);
-          setLoader('Аналізуємо повідомлення…',75);
+          ALL_CHATS=chatList.map(c=>analyzeChat(c));
+          const merged=mergeStats(ALL_CHATS);
+          ALL_CHATS.unshift(merged);
+          setLoader('Будуємо дашборд…',90);
           setTimeout(()=>{
-            ALL_CHATS=chatList.map(c=>analyzeChat(c));
-            const merged=mergeStats(ALL_CHATS);
-            ALL_CHATS.unshift(merged); // index 0 = global
-            setLoader('Будуємо дашборд…',90);
-            setTimeout(()=>{
-              buildSwitcher();
-              showChat(0);
-              setLoader('Готово!',100);
-              setTimeout(showDashboard,300);
-            },150);
-          },100);
+            buildSwitcher();
+            showChat(0);
+            setLoader('Готово!',100);
+            setTimeout(showDashboard,300);
+          },150);
         }catch(err){ hideLoading(); toast('Помилка: '+err.message); console.error(err); }
-      },80);
-    }catch(err){ hideLoading(); toast('Невалідний JSON'); }
+      },100);
+    }catch(err){ hideLoading(); toast('Помилка читання файлу: '+err.message); console.error(err); }
   };
-  reader.readAsText(file);
+  reader.readAsText(file, 'utf-8');
 }
 
 function showLoading(){ $('upload-screen').style.display='none'; $('loading-screen').classList.add('active'); setLoader('Читаємо файл…',15); }
