@@ -403,8 +403,7 @@ function parseHTMLExport(html, filename){
       let text = '';
       if(textEl){
         // preserve line breaks
-        textEl.querySelectorAll('br').forEach(br => br.replaceWith('
-'));
+        textEl.querySelectorAll('br').forEach(br => br.replaceWith(''));
         text = textEl.textContent.trim();
       }
 
