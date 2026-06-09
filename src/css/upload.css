@@ -1,0 +1,166 @@
+/* ── UPLOAD SCREEN ─────────────────────────────── */
+#upload-screen {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2rem 1rem;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2.5rem;
+  margin-top: 1.5rem;
+}
+.logo-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.logo-text { font-size: 28px; font-weight: 800; letter-spacing: -.5px; }
+.logo-text span { color: var(--c1); }
+
+.hero-title {
+  font-size: clamp(1.8rem, 5vw, 3.2rem);
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 1rem;
+}
+.hero-title .accent { color: var(--c1); }
+
+.hero-sub {
+  font-family: var(--fm);
+  font-size: 13px;
+  color: var(--t2);
+  text-align: center;
+  margin-bottom: 2.5rem;
+  max-width: 480px;
+  line-height: 1.7;
+}
+
+/* Drop zone */
+.drop-zone {
+  width: 100%; max-width: 540px;
+  border: 1.5px dashed rgba(0,220,255,0.4);
+  border-radius: var(--r3);
+  padding: 2.5rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  background: var(--bg2);
+  transition: all .3s;
+  animation: pulse-border 3s ease-in-out infinite;
+}
+.drop-zone:hover,
+.drop-zone.drag-over {
+  border-color: var(--c1);
+  box-shadow: 0 0 30px rgba(0,220,255,0.15);
+  animation: none;
+}
+.drop-icon  { font-size: 44px; display: block; margin-bottom: 1rem; }
+.drop-title { font-size: 17px; font-weight: 700; margin-bottom: .4rem; }
+.drop-sub   { font-family: var(--fm); font-size: 11px; color: var(--t2); line-height: 1.7; }
+
+/* How-to steps */
+.hint-steps {
+  margin-top: 2rem;
+  display: flex;
+  gap: .75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 720px;
+  width: 100%;
+}
+.hint-step {
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: var(--r2);
+  padding: .85rem 1.1rem;
+  flex: 1;
+  min-width: 145px;
+  max-width: 200px;
+}
+.hint-step .sn {
+  font-family: var(--fm);
+  font-size: 10px; font-weight: 500;
+  color: var(--c1);
+  letter-spacing: .1em;
+  margin-bottom: 5px;
+}
+.hint-step p { font-size: 12px; color: var(--t2); line-height: 1.5; }
+
+/* Info section on upload page */
+.upload-info {
+  margin-top: 2rem;
+  max-width: 540px;
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: var(--r2);
+  padding: 1.25rem 1.5rem;
+}
+.upload-info h3 {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: var(--c3);
+  text-transform: uppercase;
+  margin-bottom: .75rem;
+}
+.upload-info ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.upload-info li {
+  font-family: var(--fm);
+  font-size: 11px;
+  color: var(--t2);
+  line-height: 1.5;
+  padding-left: 1rem;
+  position: relative;
+}
+.upload-info li::before {
+  content: '→';
+  position: absolute; left: 0;
+  color: var(--c1);
+}
+
+/* ── LOADING SCREEN ─────────────────────────────── */
+#loading-screen {
+  display: none;
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1.5rem;
+}
+#loading-screen.active { display: flex; }
+
+.lr {
+  width: 80px; height: 80px;
+  position: relative;
+}
+.lr::before, .lr::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.lr::before { border-top-color: var(--c1); animation: spin 1s linear infinite; }
+.lr::after  { border-bottom-color: var(--c2); animation: spin 1.5s linear infinite reverse; inset: 8px; }
+
+.lt       { font-family: var(--fm); font-size: 14px; color: var(--t2); letter-spacing: .05em; }
+.lb-wrap  { width: 280px; height: 2px; background: var(--br); border-radius: 2px; overflow: hidden; }
+.lb       { height: 100%; background: linear-gradient(90deg, var(--c1), var(--c2)); width: 0%; transition: width .4s ease; border-radius: 2px; }
+.lf       { font-family: var(--fm); font-size: 11px; color: var(--t3); }

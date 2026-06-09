@@ -1,0 +1,46 @@
+/* ── RESPONSIVE — MOBILE FIRST ───────────────────── */
+
+/* Tablet (≤900px) */
+@media (max-width: 900px) {
+  .g2, .g3 { grid-template-columns: 1fr; }
+  .bento    { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Mobile (≤600px) */
+@media (max-width: 600px) {
+  .dash-content    { padding: .75rem; }
+  .dash-nav        { padding: 0 .75rem; height: 52px; }
+  .nav-badge       { display: none; }
+
+  .chat-switcher-bar { padding: .6rem .75rem; }
+
+  .bento           { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .mc              { padding: .85rem; }
+  .mc-value        { font-size: 19px; }
+
+  .chat-hero       { flex-direction: column; align-items: flex-start; padding: 1rem; }
+
+  .sc-grid         { grid-template-columns: 1fr; }
+
+  .hm { grid-template-columns: 28px repeat(12, 1fr); overflow: hidden; }
+  .hm > *:nth-child(n+15) { display: none; } /* show only 12h on mobile */
+
+  .media-grid { grid-template-columns: repeat(3, 1fr); }
+
+  .hint-steps { flex-direction: column; align-items: stretch; }
+  .hint-step  { max-width: 100%; }
+
+  .words-cloud .wp { font-size: 11px !important; padding: 3px 9px; }
+
+  #scroll-top-btn  { bottom: 1rem; right: 1rem; width: 38px; height: 38px; }
+
+  .modal           { padding: 1.25rem; }
+
+  .dash-tab        { padding: 12px 12px; font-size: 10px; }
+}
+
+/* Small mobile (≤400px) */
+@media (max-width: 400px) {
+  .bento  { grid-template-columns: 1fr 1fr; }
+  .hero-title { font-size: 1.6rem; }
+}

@@ -1,0 +1,95 @@
+:root {
+  --bg:  #080810;
+  --bg2: #0d0d1a;
+  --bg3: #111122;
+  --bg4: #161630;
+  --br:  rgba(255,255,255,0.07);
+  --brc: rgba(0,220,255,0.3);
+  --c1: #00dcff;
+  --c2: #a855f7;
+  --c3: #f59e0b;
+  --c4: #10b981;
+  --c5: #ec4899;
+  --c6: #3b82f6;
+  --c7: #ef4444;
+  --c8: #84cc16;
+  --t1: #f0f0ff;
+  --t2: #8888aa;
+  --t3: #44445a;
+  --fd: 'Syne', sans-serif;
+  --fm: 'JetBrains Mono', monospace;
+  --r1: 8px;
+  --r2: 14px;
+  --r3: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: var(--fd);
+  background: var(--bg);
+  color: var(--t1);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated background grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,220,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,220,255,0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  transition: opacity .4s;
+}
+
+body.no-bg-anim::before { opacity: 0; }
+
+/* Floating orbs */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 600px 400px at 10% 20%, rgba(0,220,255,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 350px at 90% 80%, rgba(168,85,247,0.04) 0%, transparent 70%);
+  pointer-events: none;
+  animation: orb-drift 20s ease-in-out infinite alternate;
+}
+
+body.no-bg-anim::after { animation: none; opacity: 0; }
+
+@keyframes orb-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(20px, -15px) scale(1.05); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar          { width: 5px; height: 5px; }
+::-webkit-scrollbar-track    { background: var(--bg); }
+::-webkit-scrollbar-thumb    { background: var(--br); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-border {
+  0%,100% { border-color: rgba(0,220,255,0.4); }
+  50%      { border-color: rgba(0,220,255,0.9); box-shadow: 0 0 20px rgba(0,220,255,0.2); }
+}
+
+.ain  { animation: fadeInUp .35s ease both; }
+.d1   { animation-delay: .05s; }
+.d2   { animation-delay: .1s; }
+.d3   { animation-delay: .15s; }
+.hidden { display: none !important; }

@@ -1,0 +1,55 @@
+/* ── MODALS ──────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  animation: fadeInUp .2s ease both;
+}
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--br);
+  border-radius: var(--r3);
+  padding: 1.75rem;
+  width: 100%; max-width: 360px;
+  position: relative;
+}
+
+.modal-title {
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -.3px;
+  margin-bottom: 1.25rem;
+  color: var(--t1);
+  word-break: break-word;
+}
+
+.modal-btns {
+  display: flex; gap: .6rem; flex-wrap: wrap;
+}
+
+.mbtn {
+  font-family: var(--fm); font-size: 11px;
+  padding: 7px 16px; border-radius: 100px;
+  cursor: pointer; transition: all .2s;
+  border: 1px solid var(--br); background: transparent; color: var(--t2);
+}
+.mbtn:hover { border-color: rgba(255,255,255,0.2); color: var(--t1); }
+.mbtn.mbtn-c { border-color: rgba(0,220,255,0.4); color: var(--c1); }
+.mbtn.mbtn-c:hover { background: rgba(0,220,255,0.1); }
+.mbtn.mbtn-a { border-color: rgba(168,85,247,0.4); color: var(--c2); }
+.mbtn.mbtn-a:hover { background: rgba(168,85,247,0.1); }
+.mbtn.mbtn-d { border-color: rgba(239,68,68,0.4); color: var(--c7); }
+.mbtn.mbtn-d:hover { background: rgba(239,68,68,0.1); }
+
+.modal-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--br);
+  border-radius: var(--r1); color: var(--t1);
+  font-family: var(--fm); font-size: 12px;
+  padding: 8px 12px; outline: none;
+  transition: border-color .2s;
+}
+.modal-input:focus { border-color: var(--c1); }
+
+#mb-rename-form { display: flex; gap: .5rem; align-items: center; }
